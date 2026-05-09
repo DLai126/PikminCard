@@ -5,29 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>皮克敏明信片收藏</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 載入 Leaflet 地圖套件 -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
     <style>
         /* 自定義深色捲軸樣式 */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0f172a; /* slate-900 */
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #334155; /* slate-700 */
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #475569; /* slate-600 */
-        }
-        .image-fit {
-            object-fit: cover;
-            width: 100%;
-            height: 180px;
-        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .image-fit { object-fit: cover; width: 100%; height: 180px; }
+        
+        /* 修正 Leaflet 地圖彈出窗在深色模式的樣式 */
+        .leaflet-popup-content-wrapper { background-color: #1E293B; color: #f1f5f9; border: 1px solid #334155; }
+        .leaflet-popup-tip { background-color: #1E293B; border: 1px solid #334155; }
+        .custom-leaflet-icon { border-radius: 50%; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); border: 2px solid #fff; background: #1E293B; display: flex; align-items: center; justify-content: center;}
+        .custom-leaflet-icon img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body class="bg-[#0B1120] min-h-screen font-sans text-slate-200">
+
+    <!-- ⚠️ LINE/FB 內建瀏覽器警告橫幅 -->
+    <div id="inAppWarning" class="hidden bg-red-600 text-white p-3 sm:p-4 text-sm font-bold text-center z-[1100] shadow-md border-b border-red-800 relative">
+        <span class="text-xl block mb-1">⚠️ 無法在此登入 Google</span>
+        偵測到您正在使用 LINE 或 FB 內建瀏覽器，這會被 Google 安全機制阻擋。<br>
+        👉 請點擊畫面右上角或右下角的 <span class="bg-white/20 px-2 py-0.5 rounded text-yellow-200">選單 ⋮</span>，並選擇 <span class="text-yellow-300 text-base">「在預設瀏覽器中開啟」</span> (Safari / Chrome) 即可正常使用！
+    </div>
 
     <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         
@@ -50,9 +56,6 @@
                         <span id="userName" class="text-xs text-white"></span>
                         <button onclick="window.logout()" class="text-[10px] bg-slate-600 hover:bg-red-500 text-white px-2 py-0.5 rounded transition">登出</button>
                     </div>
-                </div>
-                <div class="flex gap-2">
-                    <!-- 匯出備份按鈕已移除 -->
                 </div>
                 <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
                     顯示總數: <span id="countDisplay" class="text-white font-bold">0</span>
@@ -138,55 +141,75 @@
                 <p id="adminNotice" class="text-yellow-400 text-xs mt-2 hidden">⚠️ 非管理員上傳，需等候管理員審核後才會公開顯示。</p>
             </div>
 
-            <!-- Right Column: Gallery -->
-            <div class="lg:col-span-3">
+            <!-- Right Column: Gallery / Map -->
+            <div class="lg:col-span-3 flex flex-col">
                 
-                <!-- 過濾器列 (Filter Bar) -->
-                <div class="mb-5 flex flex-wrap gap-2 items-center" id="filterBar">
-                    <button onclick="window.setFilter('all')" data-type="all" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-[#3B6EA5] text-white border border-[#3B6EA5] transition font-medium shadow-sm">全部顯示</button>
-                    <button onclick="window.setFilter('mushroom')" data-type="mushroom" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🍄 菇點</button>
-                    <button onclick="window.setFilter('flower')" data-type="flower" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🌸 花點</button>
-                    <button onclick="window.setFilter('hidden_flower')" data-type="hidden_flower" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🤫 隱藏花點</button>
+                <!-- 控制列 (Filter & View Toggle Bar) -->
+                <div class="mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div class="flex flex-wrap gap-2 items-center" id="filterBar">
+                        <button onclick="window.setFilter('all')" data-type="all" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-[#3B6EA5] text-white border border-[#3B6EA5] transition font-medium shadow-sm">全部顯示</button>
+                        <button onclick="window.setFilter('mushroom')" data-type="mushroom" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🍄 菇點</button>
+                        <button onclick="window.setFilter('flower')" data-type="flower" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🌸 花點</button>
+                        <button onclick="window.setFilter('hidden_flower')" data-type="hidden_flower" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🤫 隱藏花點</button>
+                    </div>
+                    
+                    <div class="flex bg-slate-800 rounded-lg p-1 border border-slate-700 shadow-sm shrink-0">
+                        <button onclick="window.setView('gallery')" id="btnViewGallery" class="px-3 py-1 text-xs font-bold rounded-md transition-colors bg-slate-600 text-white shadow">🖼️ 畫廊</button>
+                        <button onclick="window.setView('map')" id="btnViewMap" class="px-3 py-1 text-xs font-bold rounded-md transition-colors text-slate-400 hover:text-white">🗺️ 地圖</button>
+                    </div>
                 </div>
 
-                <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                    <!-- 明信片卡片會在這裡生成 -->
+                <!-- 畫廊模式容器 -->
+                <div id="galleryContainer" class="flex-grow">
+                    <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                        <!-- 明信片卡片會在這裡生成 -->
+                    </div>
+
+                    <div id="emptyState" class="hidden text-center py-20 bg-[#1E293B] rounded-xl border border-slate-700 shadow-sm mt-0">
+                        <span class="text-5xl mb-4 block">📭</span>
+                        <p class="text-slate-400">沒有符合條件的明信片，趕快新增吧！</p>
+                    </div>
                 </div>
 
-                <div id="emptyState" class="hidden text-center py-20 bg-[#1E293B] rounded-xl border border-slate-700 shadow-sm mt-0">
-                    <span class="text-5xl mb-4 block">📭</span>
-                    <p class="text-slate-400">沒有符合條件的明信片，趕快新增吧！</p>
+                <!-- 地圖模式容器 -->
+                <div id="mapContainerWrapper" class="hidden w-full h-[600px] lg:h-full min-h-[500px] rounded-xl overflow-hidden border border-slate-700 shadow-xl relative z-10">
+                    <div id="map" class="w-full h-full bg-slate-900"></div>
                 </div>
+
             </div>
 
         </div>
     </div>
 
     <!-- 圖片放大 Modal (Lightbox) -->
-    <div id="imageModal" class="hidden fixed inset-0 z-[120] bg-black/90 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
+    <div id="imageModal" class="hidden fixed inset-0 z-[1200] bg-black/90 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
         <img id="modalImage" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-slate-700" onclick="event.stopPropagation()">
         <button class="absolute top-6 right-6 text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-700 rounded-full p-2 transition" onclick="window.closeImageModal()">
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
     </div>
 
-    <!-- 刪除確認 Modal -->
-    <div id="deleteModal" class="hidden fixed inset-0 z-[110] bg-black/70 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-[#1E293B] border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full">
-            <h3 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                <svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                確認刪除
+    <!-- 🚀 通用防呆確認 Modal (支援審核、隱藏、刪除) -->
+    <div id="confirmModal" class="hidden fixed inset-0 z-[1150] bg-black/70 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-[#1E293B] border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full relative overflow-hidden">
+            <!-- 裝飾用背景光暈 -->
+            <div id="cmGlow" class="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <h3 id="cmTitle" class="text-xl font-bold text-white mb-2 flex items-center gap-2 relative z-10">
+                <!-- 標題會動態載入 -->
             </h3>
-            <p class="text-slate-300 text-sm mb-6">您確定要刪除這張明信片嗎？此動作將無法復原。</p>
-            <div class="flex justify-end gap-3">
-                <button onclick="window.closeDeleteModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm transition font-medium">取消</button>
-                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm transition font-bold shadow-lg">確認刪除</button>
+            <p id="cmDesc" class="text-slate-300 text-sm mb-6 relative z-10">
+                <!-- 說明會動態載入 -->
+            </p>
+            <div class="flex justify-end gap-3 relative z-10">
+                <button onclick="window.closeConfirmModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm transition font-medium">取消</button>
+                <button id="cmConfirmBtn" class="px-4 py-2 text-white rounded-md text-sm transition font-bold shadow-lg">確認</button>
             </div>
         </div>
     </div>
 
     <!-- 訊息提示元件 -->
-    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-600 text-white px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-2 z-[100]">
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-600 text-white px-6 py-3 rounded-full shadow-2xl z-[1300] flex items-center gap-2">
         <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
         <span id="toastMsg">操作成功！</span>
     </div>
@@ -220,13 +243,26 @@
         let currentUserId = null;
         let postcards = [];
         let unsubscribeSnapshot = null;
-        let currentFilter = 'all'; // 預設顯示全部
+        
+        // 狀態變數
+        let currentFilter = 'all'; 
+        let currentDisplayMode = 'gallery'; // 'gallery' 或 'map'
+        
+        // 地圖相關變數
+        let leafletMap = null;
+        let mapMarkersLayer = null;
 
         const loginBtn = document.getElementById('loginBtn');
         const userInfo = document.getElementById('userInfo');
         const userAvatar = document.getElementById('userAvatar');
         const userName = document.getElementById('userName');
         const adminNotice = document.getElementById('adminNotice');
+
+        // 👉 偵測是否為 LINE 或 FB 等內建瀏覽器
+        const isAppBrowser = /Line|FBAV|FBAN|Instagram/i.test(navigator.userAgent);
+        if (isAppBrowser) {
+            document.getElementById('inAppWarning').classList.remove('hidden');
+        }
 
         // 啟動 Firebase
         if (useFirebase) {
@@ -235,9 +271,17 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
 
+                // 無論有沒有登入，網頁一啟動就去抓公開的圖鑑讓大家看！
+                loadPostcardsFromCloud();
+
                 const provider = new GoogleAuthProvider();
 
                 window.loginWithGoogle = async () => {
+                    if (isAppBrowser) {
+                        window.showToast("⚠️ 請先點擊選單「在預設瀏覽器中開啟」才能登入喔！");
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
                     try {
                         await signInWithPopup(auth, provider);
                     } catch (error) {
@@ -254,8 +298,6 @@
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         currentUserId = user.uid;
-                        
-                        // 更新介面
                         loginBtn.classList.add('hidden');
                         userInfo.classList.remove('hidden');
                         userAvatar.src = user.photoURL || '';
@@ -271,21 +313,15 @@
                         } else {
                             adminNotice.classList.add('hidden');
                         }
-
-                        loadPostcardsFromCloud();
                     } else {
                         currentUserId = null;
-                        
                         loginBtn.classList.remove('hidden');
                         userInfo.classList.add('hidden');
                         adminNotice.classList.add('hidden');
                         document.getElementById('creatorInput').value = '';
-                        
-                        if(unsubscribeSnapshot) unsubscribeSnapshot();
-                        
-                        postcards = [];
-                        renderGallery();
                     }
+                    
+                    updateDisplay();
                 });
             } catch(e) {
                 console.error("Firebase 初始化失敗，請檢查 Config", e);
@@ -295,21 +331,24 @@
 
         // 載入雲端資料庫
         function loadPostcardsFromCloud() {
-            if (!currentUserId) return;
             const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
+            if (unsubscribeSnapshot) unsubscribeSnapshot(); 
             unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
                 postcards = [];
                 snapshot.forEach(docSnap => {
                     postcards.push({ id: docSnap.id, ...docSnap.data() });
                 });
                 postcards.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                renderGallery();
+                updateDisplay();
             }, (error) => {
                 console.error("讀取資料失敗", error);
             });
         }
 
-        // DOM 元素
+        // ==========================================
+        // UI 與互動邏輯
+        // ==========================================
+
         const fileInput = document.getElementById('fileInput');
         const previewImage = document.getElementById('previewImage');
         const placeholderText = document.getElementById('placeholderText');
@@ -320,17 +359,40 @@
         const coordsInput = document.getElementById('coordsInput');
         const previewLocation = document.getElementById('previewLocation');
         const addBtn = document.getElementById('addBtn');
+        
+        const galleryContainer = document.getElementById('galleryContainer');
+        const mapContainerWrapper = document.getElementById('mapContainerWrapper');
         const gallery = document.getElementById('gallery');
         const emptyState = document.getElementById('emptyState');
         const countDisplay = document.getElementById('countDisplay');
-        const btnText = document.getElementById('btnText');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        const errorMsg = document.getElementById('errorMsg');
 
-        let currentImageDataUrl = null;
-        let parsedLat = null;
-        let parsedLng = null;
-        let parsedLocationString = "未知地點";
+        // 切換顯示模式 (畫廊 / 地圖)
+        window.setView = function(mode) {
+            currentDisplayMode = mode;
+            const btnGallery = document.getElementById('btnViewGallery');
+            const btnMap = document.getElementById('btnViewMap');
+
+            if (mode === 'gallery') {
+                btnGallery.className = "px-3 py-1 text-xs font-bold rounded-md transition-colors bg-slate-600 text-white shadow";
+                btnMap.className = "px-3 py-1 text-xs font-bold rounded-md transition-colors text-slate-400 hover:text-white";
+                galleryContainer.classList.remove('hidden');
+                mapContainerWrapper.classList.add('hidden');
+            } else {
+                btnMap.className = "px-3 py-1 text-xs font-bold rounded-md transition-colors bg-slate-600 text-white shadow";
+                btnGallery.className = "px-3 py-1 text-xs font-bold rounded-md transition-colors text-slate-400 hover:text-white";
+                galleryContainer.classList.add('hidden');
+                mapContainerWrapper.classList.remove('hidden');
+                
+                // 初始化地圖 (如果尚未初始化)
+                if (!leafletMap) {
+                    initLeafletMap();
+                } else {
+                    // 解決地圖容器因 hidden 導致的尺寸計算錯誤
+                    setTimeout(() => { leafletMap.invalidateSize(); }, 100);
+                }
+            }
+            updateDisplay();
+        };
 
         // 過濾器切換邏輯
         window.setFilter = function(type) {
@@ -345,7 +407,7 @@
                     btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
                 }
             });
-            renderGallery();
+            updateDisplay();
         };
 
         // 圖片壓縮函數
@@ -376,36 +438,29 @@
             reader.readAsDataURL(file);
         }
 
-        // 更新預覽畫面函式 (避免重複程式碼)
         function updateImagePreview(dataUrl) {
             currentImageDataUrl = dataUrl;
             previewImage.src = currentImageDataUrl;
             previewImage.classList.remove('hidden');
             removeImageBtn.classList.remove('hidden');
             placeholderText.classList.add('hidden');
-            errorMsg.classList.add('hidden');
+            document.getElementById('errorMsg').classList.add('hidden');
         }
 
-        // 貼上與拖曳事件... (增強支援 Excel/Word 等 Office 軟體圖片貼上)
+        // 剪貼簿與拖曳事件支援
         window.addEventListener('paste', async (e) => {
             const clipboardData = e.clipboardData || window.clipboardData;
             if (!clipboardData) return;
-
             let imageFound = false;
-
-            // 1. 優先嘗試直接讀取 files (部分瀏覽器支援較好)
             if (clipboardData.files && clipboardData.files.length > 0) {
                 for (let i = 0; i < clipboardData.files.length; i++) {
                     const file = clipboardData.files[i];
                     if (file.type.startsWith('image/')) {
                         compressImage(file, updateImagePreview);
-                        imageFound = true;
-                        break;
+                        imageFound = true; break;
                     }
                 }
             }
-
-            // 2. 如果沒找到，嘗試讀取 items (常規截圖)
             if (!imageFound && clipboardData.items) {
                 for (let i = 0; i < clipboardData.items.length; i++) {
                     const item = clipboardData.items[i];
@@ -413,14 +468,11 @@
                         const blob = item.getAsFile();
                         if (blob) {
                             compressImage(blob, updateImagePreview);
-                            imageFound = true;
-                            break;
+                            imageFound = true; break;
                         }
                     }
                 }
             }
-
-            // 3. 終極備案：針對 Excel 等 Office 軟體 (圖片可能被轉成 HTML Base64)
             if (!imageFound) {
                 const htmlData = clipboardData.getData('text/html');
                 if (htmlData) {
@@ -431,16 +483,11 @@
                             const blob = await res.blob();
                             compressImage(blob, updateImagePreview);
                             imageFound = true;
-                        } catch (err) {
-                            console.error("Excel HTML image parsing failed", err);
-                        }
+                        } catch (err) {}
                     }
                 }
             }
-
-            if (imageFound) {
-                window.showToast('已偵測並貼上圖片！');
-            }
+            if (imageFound) window.showToast('已偵測並貼上圖片！');
         });
 
         const dropZone = document.getElementById('dropZone');
@@ -457,7 +504,6 @@
             }
         });
 
-        // 剪貼簿按鈕邏輯
         window.pasteFromClipboard = async function() {
             try {
                 const clipboardItems = await navigator.clipboard.read();
@@ -495,6 +541,11 @@
         };
 
         // 地理編碼與通知
+        let currentImageDataUrl = null;
+        let parsedLat = null;
+        let parsedLng = null;
+        let parsedLocationString = "未知地點";
+
         async function fetchLocationName(lat, lng) {
             try {
                 const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
@@ -512,10 +563,7 @@
                     return parts.join('・') || "未知地點";
                 }
                 return "未知地點";
-            } catch (error) {
-                console.error("Geocoding error:", error);
-                return "解析失敗";
-            }
+            } catch (error) { return "解析失敗"; }
         }
 
         window.showToast = function(message) {
@@ -551,18 +599,15 @@
             textArea.value = text;
             document.body.appendChild(textArea);
             textArea.select();
-            try {
-                document.execCommand('copy');
-                window.showToast('已複製座標！');
-            } catch (err) {}
+            try { document.execCommand('copy'); window.showToast('已複製座標！'); } catch (err) {}
             document.body.removeChild(textArea);
         };
 
-        // 新增/上傳按鈕
+        // 新增明信片
         addBtn.addEventListener('click', async () => {
             if (useFirebase && !currentUserId) {
-                errorMsg.textContent = '請先點擊右上角登入 Google 帳號。';
-                errorMsg.classList.remove('hidden');
+                document.getElementById('errorMsg').textContent = '請先點擊右上角登入 Google 帳號。';
+                document.getElementById('errorMsg').classList.remove('hidden');
                 return;
             }
             const title = titleInput.value.trim() || '未命名明信片';
@@ -570,17 +615,19 @@
             const type = typeInput.value;
 
             if (!currentImageDataUrl) {
-                errorMsg.textContent = '請先上傳或貼上圖片。';
-                errorMsg.classList.remove('hidden');
+                document.getElementById('errorMsg').textContent = '請先上傳或貼上圖片。';
+                document.getElementById('errorMsg').classList.remove('hidden');
                 return;
             }
             if (parsedLat === null || parsedLng === null) {
-                errorMsg.textContent = '請輸入或貼上有效的座標。';
-                errorMsg.classList.remove('hidden');
+                document.getElementById('errorMsg').textContent = '請輸入或貼上有效的座標。';
+                document.getElementById('errorMsg').classList.remove('hidden');
                 return;
             }
 
-            errorMsg.classList.add('hidden');
+            document.getElementById('errorMsg').classList.add('hidden');
+            const btnText = document.getElementById('btnText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
             btnText.textContent = '上傳中...';
             loadingSpinner.classList.remove('hidden');
             addBtn.disabled = true;
@@ -607,11 +654,8 @@
                     const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
                     await addDoc(colRef, newPostcard);
                     
-                    if (newStatus === 'approved') {
-                        window.showToast('已成功發布至雲端圖鑑！');
-                    } else {
-                        window.showToast('上傳成功！將等待管理員核准後公開。');
-                    }
+                    if (newStatus === 'approved') window.showToast('已成功發布至雲端圖鑑！');
+                    else window.showToast('上傳成功！將等待管理員核准後公開。');
                 }
                 
                 window.clearPreview();
@@ -623,7 +667,6 @@
                 previewLocation.textContent = "尚未輸入座標";
                 previewLocation.className = "text-sm text-slate-500 font-medium truncate block";
             } catch (e) {
-                console.error("儲存失敗:", e);
                 window.showToast("儲存失敗，請檢查網路連線。");
             }
 
@@ -633,86 +676,155 @@
             addBtn.classList.remove('opacity-75', 'cursor-not-allowed');
         });
 
-        // 圖片點擊放大 Modal 邏輯
+        // ==========================================
+        // Modal 與 管理員功能邏輯
+        // ==========================================
+
         window.openImageModal = function(src) {
             document.getElementById('modalImage').src = src;
             document.getElementById('imageModal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden'; // 防止背景滾動
+            document.body.style.overflow = 'hidden';
         };
-
         window.closeImageModal = function() {
             document.getElementById('imageModal').classList.add('hidden');
             document.body.style.overflow = '';
         };
 
-        // 刪除確認 Modal 邏輯
-        let cardToDeleteId = null;
-        window.promptDeletePostcard = function(id) {
-            cardToDeleteId = id;
-            document.getElementById('deleteModal').classList.remove('hidden');
+        let confirmActionCallback = null;
+
+        // 通用防呆視窗呼叫器
+        function showConfirmModal(title, desc, btnText, colorClass, actionCallback) {
+            document.getElementById('cmTitle').innerHTML = title;
+            document.getElementById('cmDesc').innerHTML = desc;
+            
+            const btn = document.getElementById('cmConfirmBtn');
+            btn.innerText = btnText;
+            // 清除之前的顏色 class，套用新的
+            btn.className = `px-4 py-2 text-white rounded-md text-sm transition font-bold shadow-lg ${colorClass}`;
+            
+            // 更換背景裝飾光暈顏色
+            const glow = document.getElementById('cmGlow');
+            if(colorClass.includes('red')) glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-red-500/20 rounded-full blur-3xl pointer-events-none';
+            else if(colorClass.includes('green')) glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl pointer-events-none';
+            else glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-yellow-500/20 rounded-full blur-3xl pointer-events-none';
+
+            confirmActionCallback = actionCallback;
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+
+        window.closeConfirmModal = function() {
+            confirmActionCallback = null;
+            document.getElementById('confirmModal').classList.add('hidden');
         };
 
-        window.closeDeleteModal = function() {
-            cardToDeleteId = null;
-            document.getElementById('deleteModal').classList.add('hidden');
-        };
-
-        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
-            if (!cardToDeleteId) return;
-            const id = cardToDeleteId;
-            window.closeDeleteModal();
-            try {
-                if (useFirebase && currentUserId === ADMIN_UID) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id));
-                    window.showToast('已刪除明信片');
-                }
-            } catch(e) { console.error("刪除失敗", e); }
+        document.getElementById('cmConfirmBtn').addEventListener('click', async () => {
+            if (confirmActionCallback) await confirmActionCallback();
+            window.closeConfirmModal();
         });
 
-        // 管理員核准明信片
-        window.approvePostcard = async function(id) {
-            try {
-                if (useFirebase && currentUserId === ADMIN_UID) {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
-                    await updateDoc(docRef, { status: 'approved' });
-                    window.showToast('已核准該明信片！公開顯示中。');
+        // 刪除按鈕觸發
+        window.promptDeletePostcard = function(id) {
+            showConfirmModal(
+                '<svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> 確認刪除',
+                '您確定要刪除這張明信片嗎？此動作將無法復原。',
+                '確認刪除',
+                'bg-red-500 hover:bg-red-600',
+                async () => {
+                    try {
+                        if (useFirebase && currentUserId === ADMIN_UID) {
+                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id));
+                            window.showToast('已刪除明信片');
+                        }
+                    } catch(e) { console.error(e); }
                 }
-            } catch(e) { console.error("核准失敗", e); }
+            );
+        };
+
+        // 核准按鈕觸發
+        window.promptApprovePostcard = function(id) {
+            showConfirmModal(
+                '✅ 確認公開',
+                '這張明信片目前處於審核狀態。核准後，所有人都可以看見它。',
+                '核准並公開',
+                'bg-green-500 hover:bg-green-600',
+                async () => {
+                    try {
+                        if (useFirebase && currentUserId === ADMIN_UID) {
+                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
+                            await updateDoc(docRef, { status: 'approved' });
+                            window.showToast('已核准該明信片！公開顯示中。');
+                        }
+                    } catch(e) { console.error(e); }
+                }
+            );
+        };
+
+        // 撤銷(隱藏)按鈕觸發
+        window.promptHidePostcard = function(id) {
+            showConfirmModal(
+                '👁️ 撤銷公開',
+                '要將這張明信片從公開大廳隱藏嗎？隱藏後它會退回審核狀態，只有您看得見。',
+                '確認隱藏',
+                'bg-yellow-600 hover:bg-yellow-700',
+                async () => {
+                    try {
+                        if (useFirebase && currentUserId === ADMIN_UID) {
+                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
+                            // 將狀態改回 pending 達成隱藏效果
+                            await updateDoc(docRef, { status: 'pending' });
+                            window.showToast('已撤銷公開！明信片已退回審核區。');
+                        }
+                    } catch(e) { console.error(e); }
+                }
+            );
         };
 
         window.toggleLike = async function(id, currentLikes) {
+            if (useFirebase && !currentUserId) {
+                window.showToast('⚠️ 請先登入 Google 帳號才能按讚喔！');
+                return;
+            }
             try {
                 if (useFirebase && currentUserId) {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
-                    await updateDoc(docRef, {
-                        likes: currentLikes + 1
-                    });
+                    await updateDoc(docRef, { likes: currentLikes + 1 });
                 }
-            } catch(e) { console.error("按讚失敗", e); }
+            } catch(e) {}
         };
 
-        // 匯出功能已移除
+        // ==========================================
+        // 渲染邏輯 (畫廊 與 地圖)
+        // ==========================================
 
-        function renderGallery() {
-            // 👉 過濾顯示邏輯 (權限 + 頁籤分類)
+        function getTagInfo(type) {
+            if (type === 'mushroom') return { color: '#9333ea', text: '#菇點' };
+            if (type === 'hidden_flower') return { color: '#10b981', text: '#隱藏花點' };
+            return { color: '#e11d48', text: '#花點' };
+        }
+
+        function updateDisplay() {
+            // 👉 共同過濾邏輯 (權限 + 頁籤分類)
             const displayCards = postcards.filter(card => {
-                // 1. 權限判斷
                 let isAuthVisible = false;
                 if (currentUserId === ADMIN_UID) isAuthVisible = true;
                 else if (!card.status || card.status === 'approved') isAuthVisible = true;
-                else if (card.creatorUid === currentUserId) isAuthVisible = true;
+                else if (currentUserId && card.creatorUid === currentUserId) isAuthVisible = true;
                 
                 if (!isAuthVisible) return false;
-
-                // 2. 頁籤分類判斷
                 if (currentFilter !== 'all' && card.type !== currentFilter) return false;
-
                 return true;
             });
 
-            // 更新顯示數量
             countDisplay.textContent = displayCards.length;
 
+            if (currentDisplayMode === 'gallery') {
+                renderGalleryView(displayCards);
+            } else {
+                renderMapView(displayCards);
+            }
+        }
+
+        function renderGalleryView(displayCards) {
             if (displayCards.length === 0) {
                 gallery.innerHTML = '';
                 emptyState.classList.remove('hidden');
@@ -721,21 +833,10 @@
 
             emptyState.classList.add('hidden');
             gallery.innerHTML = displayCards.map(card => {
-                // 設定標籤顏色與文字
-                let tagColor = '#e11d48'; 
-                let tagText = '#花點';
-                if (card.type === 'mushroom') {
-                    tagColor = '#9333ea';
-                    tagText = '#菇點';
-                } else if (card.type === 'hidden_flower') {
-                    tagColor = '#10b981'; // 綠色
-                    tagText = '#隱藏花點';
-                }
-
+                const tagInfo = getTagInfo(card.type);
                 const hash = String(new Date(card.timestamp).getTime()).slice(-10);
                 const likesCount = card.likes || 0;
                 
-                // 是否為等待審核狀態 (使用 pointer-events-none 確保可以點擊底下的圖片放大)
                 const isPending = card.status === 'pending';
                 const pendingOverlay = isPending ? `
                     <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none">
@@ -743,28 +844,36 @@
                     </div>
                 ` : '';
 
-                const approveBtnHtml = (currentUserId === ADMIN_UID && isPending) ? `
-                    <button onclick="window.approvePostcard('${card.id}')" class="absolute top-2 left-2 bg-green-500/90 text-white rounded-full px-3 py-1 text-[11px] font-bold shadow-lg hover:bg-green-600 transition z-20">
-                        ✅ 核准公開
-                    </button>
-                ` : '';
-
-                // 改呼叫防呆刪除視窗
-                const showDeleteBtn = (currentUserId === ADMIN_UID);
-                const deleteBtnHtml = showDeleteBtn ? `
-                    <button onclick="window.promptDeletePostcard('${card.id}')" class="absolute top-2 right-2 bg-red-500/90 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg hover:bg-red-600">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
-                ` : '';
+                // 管理員控制按鈕群
+                let adminControlsHtml = '';
+                if (currentUserId === ADMIN_UID) {
+                    if (isPending) {
+                        adminControlsHtml += `
+                            <button onclick="window.promptApprovePostcard('${card.id}')" class="absolute top-2 left-2 bg-green-500/90 text-white rounded-full px-3 py-1 text-[11px] font-bold shadow-lg hover:bg-green-600 transition z-20">
+                                ✅ 審核公開
+                            </button>
+                        `;
+                    } else {
+                        adminControlsHtml += `
+                            <button onclick="window.promptHidePostcard('${card.id}')" class="absolute top-2 left-2 bg-slate-700/90 text-white rounded-full px-3 py-1 text-[11px] font-bold shadow-lg hover:bg-slate-600 transition z-20 border border-slate-600">
+                                👁️ 撤銷公開
+                            </button>
+                        `;
+                    }
+                    // 刪除按鈕
+                    adminControlsHtml += `
+                        <button onclick="window.promptDeletePostcard('${card.id}')" class="absolute top-2 right-2 bg-red-500/90 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg hover:bg-red-600">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    `;
+                }
 
                 return `
-                <div class="bg-[#1A2035] rounded-xl overflow-hidden border ${isPending ? 'border-yellow-500' : 'border-[#2A344A]'} flex flex-col relative group">
+                <div class="bg-[#1A2035] rounded-xl overflow-hidden border ${isPending ? 'border-yellow-500' : 'border-[#2A344A]'} flex flex-col relative group shadow-lg">
                     ${pendingOverlay}
-                    ${approveBtnHtml}
-                    ${deleteBtnHtml}
+                    ${adminControlsHtml}
                     
                     <div class="bg-[#3B6EA5] p-2.5 pb-3 relative">
-                        <!-- 加入點擊放大事件 -->
                         <img src="${card.image}" alt="明信片" class="w-full h-[180px] object-cover rounded-md shadow-inner cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onclick="window.openImageModal('${card.image}')">
                         <h3 class="text-white font-bold text-[15px] mt-2.5 px-1 truncate shadow-sm">${card.title}</h3>
                     </div>
@@ -790,18 +899,18 @@
                                 ${card.lat.toFixed(7)}, ${card.lng.toFixed(7)}
                             </span>
                             <button class="text-slate-500 group-hover/copy:text-white transition-colors">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                             </button>
                         </div>
                         
                         <div class="flex gap-2 mb-4 relative z-20">
-                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">${tagText}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">${tagInfo.text}</span>
                             <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">#風景</span>
                         </div>
                         
                         <div class="mt-auto pt-3 border-t border-[#2A344A] relative z-20">
                             <div class="flex items-center gap-1.5 text-xs text-slate-400">
-                                <div class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: ${tagColor}"></div>
+                                <div class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: ${tagInfo.color}"></div>
                                 <span class="truncate" title="${card.locationString}">${card.locationString}</span>
                             </div>
                         </div>
@@ -810,6 +919,97 @@
             `;
             }).join('');
         }
+
+        // ==========================================
+        // 地圖模式邏輯 (Leaflet)
+        // ==========================================
+
+        function initLeafletMap() {
+            // 以台灣中心點預設
+            leafletMap = L.map('map').setView([23.6978, 120.9605], 7);
+            
+            // 使用質感深色地圖底圖 (CartoDB Dark Matter)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(leafletMap);
+
+            mapMarkersLayer = L.layerGroup().addTo(leafletMap);
+        }
+
+        function renderMapView(displayCards) {
+            if (!leafletMap || !mapMarkersLayer) return;
+            
+            // 清空舊圖標
+            mapMarkersLayer.clearLayers();
+
+            const bounds = [];
+
+            displayCards.forEach(card => {
+                if (!card.lat || !card.lng) return;
+
+                const tagInfo = getTagInfo(card.type);
+                const isPending = card.status === 'pending';
+                
+                // 外框樣式 (審核中用黃色，其餘依照卡片類型)
+                const borderColor = isPending ? '#eab308' : tagInfo.color;
+
+                // 👉 修改：製作地圖上的小圖標 HTML (將 w-10 h-10 放大為 w-14 h-14)
+                const iconHtml = `
+                    <div class="w-14 h-14 rounded-full border-[3px] overflow-hidden shadow-lg" style="border-color: ${borderColor}">
+                        <img src="${card.image}" class="w-full h-full object-cover">
+                    </div>
+                `;
+                
+                // 👉 修改：更新 Leaflet Icon 的尺寸參數對應 56px
+                const customIcon = L.divIcon({
+                    html: iconHtml,
+                    className: 'custom-leaflet-icon',
+                    iconSize: [56, 56],
+                    iconAnchor: [28, 28],
+                    popupAnchor: [0, -28]
+                });
+
+                // 👉 修改：彈出資訊窗 HTML (加入座標與複製按鈕)
+                const popupHtml = `
+                    <div class="w-48 font-sans">
+                        <div class="relative">
+                            <img src="${card.image}" class="w-full h-24 object-cover rounded border border-slate-600 mb-2 cursor-pointer hover:opacity-90" onclick="window.openImageModal('${card.image}')">
+                            ${isPending ? '<span class="absolute top-1 right-1 bg-yellow-500 text-slate-900 text-[10px] font-bold px-1 rounded">審核中</span>' : ''}
+                        </div>
+                        <h4 class="font-bold text-sm text-white mb-1 truncate">${card.title}</h4>
+                        <p class="text-[11px] text-slate-400 mb-2 truncate">By ${card.creator}</p>
+                        
+                        <div class="bg-[#121726] border border-[#2A344A] rounded p-2 flex justify-between items-center mb-2 group/copy cursor-pointer" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
+                            <span class="text-slate-300 font-mono text-[10px] tracking-wide truncate">
+                                ${card.lat.toFixed(6)}, ${card.lng.toFixed(6)}
+                            </span>
+                            <button class="text-slate-500 hover:text-white transition-colors flex-shrink-0 ml-1">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                            </button>
+                        </div>
+                        
+                        <div class="flex items-center justify-between border-t border-slate-700 pt-2 mt-1">
+                            <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800" style="color: ${tagInfo.color}">${tagInfo.text}</span>
+                            <span class="text-xs text-slate-300">❤️ ${card.likes || 0}</span>
+                        </div>
+                    </div>
+                `;
+
+                const marker = L.marker([card.lat, card.lng], { icon: customIcon });
+                marker.bindPopup(popupHtml);
+                mapMarkersLayer.addLayer(marker);
+
+                bounds.push([card.lat, card.lng]);
+            });
+
+            // 如果有圖釘，自動縮放地圖到適合的範圍
+            if (bounds.length > 0 && currentDisplayMode === 'map') {
+                leafletMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+            }
+        }
+
     </script>
 </body>
 </html>
