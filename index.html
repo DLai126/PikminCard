@@ -32,15 +32,28 @@
     <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         
         <!-- Header -->
-        <header class="mb-8 flex justify-between items-end border-b border-slate-800 pb-4">
+        <header class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-800 pb-4 gap-4">
             <div>
                 <h1 class="text-3xl sm:text-4xl font-bold text-white mb-2 flex items-center gap-3">
                     🌱 皮克敏明信片圖鑑
                 </h1>
                 <p class="text-slate-400 text-sm">記錄您的花點與菇點明信片，支援 Ctrl+V 貼上圖片</p>
             </div>
-            <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-                收藏總數: <span id="countDisplay" class="text-white font-bold">0</span>
+            <div class="flex flex-col sm:flex-row items-end gap-3">
+                <div class="flex gap-2">
+                    <button onclick="window.exportData()" class="text-xs bg-slate-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded border border-slate-600 transition flex items-center gap-1 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        匯出備份
+                    </button>
+                    <button onclick="document.getElementById('importFile').click()" class="text-xs bg-slate-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded border border-slate-600 transition flex items-center gap-1 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        匯入備份
+                    </button>
+                    <input type="file" id="importFile" class="hidden" accept=".json" onchange="window.importData(event)">
+                </div>
+                <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                    收藏總數: <span id="countDisplay" class="text-white font-bold">0</span>
+                </div>
             </div>
         </header>
 
@@ -147,8 +160,16 @@
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase 初始化與雙模狀態判斷
+        let useFirebase = true; // 👉 這裡改成 true
+        let app, auth, db;
+        const appId = 'my-pikmin-app'; // 可以自己取一個不重複的名字
+        let currentUserId = null;
+        let postcards = [];
+        let unsubscribeSnapshot = null;
+
+        // 👇 貼上您剛剛從 Firebase 複製出來的 config
         const firebaseConfig = {
-  apiKey: "AIzaSyA5E_0Cb3InWPOYb-JCylMWDv1vdgEac1A",
+            apiKey: "AIzaSyA5E_0Cb3InWPOYb-JCylMWDv1vdgEac1A",
   authDomain: "pikmincard.firebaseapp.com",
   projectId: "pikmincard",
   storageBucket: "pikmincard.firebasestorage.app",
@@ -156,6 +177,12 @@
   appId: "1:428923825506:web:b0c508dc9520d5a4f9103b",
   measurementId: "G-5X2MHNSZ8K"
 };
+        
+        // 啟動 Firebase
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
         // 認證流程 (僅雲端模式執行)
         if (useFirebase) {
             const initAuth = async () => {
@@ -541,6 +568,56 @@
                     }
                 }
             } catch(e) { console.error("更新按讚狀態失敗", e); }
+        };
+
+        // 匯出資料
+        window.exportData = function() {
+            if (postcards.length === 0) {
+                window.showToast('目前沒有可以匯出的明信片。');
+                return;
+            }
+            const dataStr = JSON.stringify(postcards);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            // 檔名加上當下日期時間
+            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
+            a.download = `Pikmin_Backup_${dateStr}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            window.showToast('備份檔案已下載！');
+        };
+
+        // 匯入資料
+        window.importData = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        
+                        if (useFirebase && currentUserId) {
+                            window.showToast('雲端模式下請直接在其他電腦登入同一個帳號即可。');
+                        } else {
+                            // 本地模式：覆蓋並儲存
+                            postcards = importedData;
+                            localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
+                            renderGallery();
+                            window.showToast('備份已成功匯入！');
+                        }
+                    } else {
+                        window.showToast('備份檔案格式錯誤！');
+                    }
+                } catch (err) {
+                    window.showToast('讀取備份檔案失敗！');
+                }
+                event.target.value = ''; // 讓同一個檔案可以重複選取
+            };
+            reader.readAsText(file);
         };
 
         // 渲染畫廊
