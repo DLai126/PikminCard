@@ -56,14 +56,9 @@
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         匯出備份
                     </button>
-                    <button onclick="document.getElementById('importFile').click()" class="text-xs bg-slate-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded border border-slate-600 transition flex items-center gap-1 shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        匯入備份
-                    </button>
-                    <input type="file" id="importFile" class="hidden" accept=".json" onchange="window.importData(event)">
                 </div>
                 <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-                    收藏總數: <span id="countDisplay" class="text-white font-bold">0</span>
+                    公開總數: <span id="countDisplay" class="text-white font-bold">0</span>
                 </div>
             </div>
         </header>
@@ -135,13 +130,14 @@
 
                 <!-- Submit Button -->
                 <button id="addBtn" class="w-full bg-[#3B6EA5] text-white font-medium py-2 rounded-md hover:bg-blue-600 transition shadow flex justify-center items-center text-sm">
-                    <span id="btnText">儲存至圖鑑</span>
+                    <span id="btnText">上傳明信片</span>
                     <svg id="loadingSpinner" class="hidden animate-spin ml-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                 </button>
                 <p id="errorMsg" class="text-red-400 text-xs mt-2 hidden"></p>
+                <p id="adminNotice" class="text-yellow-400 text-xs mt-2 hidden">⚠️ 非管理員上傳，需等候管理員審核後才會公開顯示。</p>
             </div>
 
             <!-- Right Column: Gallery -->
@@ -171,15 +167,13 @@
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // ⚠️ 請在這裡修改您的設定 ⚠️
-        // ==========================================
-        let useFirebase = true; // 確保這裡是 true 才會連雲端
+        let useFirebase = true; 
         const appId = 'pikmincard';
         
-        // 1. 👇 填入您的 Google UID (防刪除保護)
+        // 管理員的 Google UID
         const ADMIN_UID = '7zVTyv3yn9T47Rk2wnrC3IDK29x2';
 
-        // 2. 👇 貼上您剛剛從 Firebase 複製出來的 config
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyA5E_0Cb3InWPOYb-JCylMWDv1vdgEac1A",
             authDomain: "pikmincard.firebaseapp.com",
@@ -201,83 +195,75 @@
         const userInfo = document.getElementById('userInfo');
         const userAvatar = document.getElementById('userAvatar');
         const userName = document.getElementById('userName');
+        const adminNotice = document.getElementById('adminNotice');
 
         // 啟動 Firebase
         if (useFirebase) {
             try {
-                if (Object.keys(firebaseConfig).length === 0) {
-                     console.warn("⚠️ Firebase Config 尚未設定，將切換至本地模式。請記得填入金鑰！");
-                     useFirebase = false;
-                     startLocalMode();
-                } else {
-                    app = initializeApp(firebaseConfig);
-                    auth = getAuth(app);
-                    db = getFirestore(app);
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-                    const provider = new GoogleAuthProvider();
+                const provider = new GoogleAuthProvider();
 
-                    window.loginWithGoogle = async () => {
-                        try {
-                            await signInWithPopup(auth, provider);
-                        } catch (error) {
-                            console.error("Google 登入失敗", error);
-                            window.showToast("登入失敗：" + error.message);
+                window.loginWithGoogle = async () => {
+                    try {
+                        await signInWithPopup(auth, provider);
+                    } catch (error) {
+                        console.error("Google 登入失敗", error);
+                        window.showToast("登入失敗：" + error.message);
+                    }
+                };
+
+                window.logout = () => {
+                    signOut(auth);
+                };
+
+                // 自動登入狀態監聽
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        
+                        // 更新介面
+                        loginBtn.classList.add('hidden');
+                        userInfo.classList.remove('hidden');
+                        userAvatar.src = user.photoURL || '';
+                        userName.textContent = user.displayName || '玩家';
+                        
+                        // 自動把玩家名稱填入為 Google 暱稱
+                        const creatorInput = document.getElementById('creatorInput');
+                        if (creatorInput && !creatorInput.value) {
+                            creatorInput.value = user.displayName || '';
                         }
-                    };
 
-                    window.logout = () => {
-                        signOut(auth);
-                    };
-
-                    // 自動登入狀態監聽
-                    onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            currentUserId = user.uid;
-                            console.log("👉 【管理員設定】您的 Google UID 是:", user.uid);
-                            
-                            // 更新介面
-                            loginBtn.classList.add('hidden');
-                            userInfo.classList.remove('hidden');
-                            userAvatar.src = user.photoURL || '';
-                            userName.textContent = user.displayName || '玩家';
-                            
-                            // 自動把玩家名稱填入為 Google 暱稱
-                            const creatorInput = document.getElementById('creatorInput');
-                            if (creatorInput && !creatorInput.value) {
-                                creatorInput.value = user.displayName || '';
-                            }
-
-                            loadPostcardsFromCloud();
+                        // 如果不是管理員，顯示審核提示
+                        if (currentUserId !== ADMIN_UID) {
+                            adminNotice.classList.remove('hidden');
                         } else {
-                            currentUserId = null;
-                            
-                            // 恢復未登入介面
-                            loginBtn.classList.remove('hidden');
-                            userInfo.classList.add('hidden');
-                            document.getElementById('creatorInput').value = '';
-                            
-                            if(unsubscribeSnapshot) unsubscribeSnapshot();
-                            
-                            // 清空畫廊並顯示未登入狀態
-                            postcards = [];
-                            renderGallery();
+                            adminNotice.classList.add('hidden');
                         }
-                    });
-                }
+
+                        loadPostcardsFromCloud();
+                    } else {
+                        currentUserId = null;
+                        
+                        // 恢復未登入介面
+                        loginBtn.classList.remove('hidden');
+                        userInfo.classList.add('hidden');
+                        adminNotice.classList.add('hidden');
+                        document.getElementById('creatorInput').value = '';
+                        
+                        if(unsubscribeSnapshot) unsubscribeSnapshot();
+                        
+                        // 清空畫廊並顯示未登入狀態
+                        postcards = [];
+                        renderGallery();
+                    }
+                });
             } catch(e) {
                 console.error("Firebase 初始化失敗，請檢查 Config", e);
-                alert("Firebase 初始化失敗，請檢查原始碼中的 Config 是否正確！");
                 useFirebase = false;
-                startLocalMode();
             }
-        } else {
-             startLocalMode();
-        }
-
-        function startLocalMode() {
-            console.log("啟用本地儲存模式 (LocalStorage)");
-            if(loginBtn) loginBtn.classList.add('hidden');
-            setTimeout(loadPostcardsFromLocal, 100);
         }
 
         // 載入雲端資料庫
@@ -294,20 +280,6 @@
             }, (error) => {
                 console.error("讀取資料失敗", error);
             });
-        }
-
-        // 載入本地資料庫
-        function loadPostcardsFromLocal() {
-            try {
-                const stored = localStorage.getItem('pikmin_postcards_local');
-                if (stored) {
-                    postcards = JSON.parse(stored);
-                    postcards.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                }
-            } catch(e) {
-                console.error("讀取本地資料失敗", e);
-            }
-            renderGallery();
         }
 
         // DOM 元素
@@ -546,21 +518,26 @@
             }
 
             errorMsg.classList.add('hidden');
-            btnText.textContent = '處理中...';
+            btnText.textContent = '上傳中...';
             loadingSpinner.classList.remove('hidden');
             addBtn.disabled = true;
             addBtn.classList.add('opacity-75', 'cursor-not-allowed');
+
+            // 👉 加入審核狀態機制
+            // 如果是管理員，直接設為 approved。其他人設為 pending。
+            const newStatus = (currentUserId === ADMIN_UID) ? 'approved' : 'pending';
 
             const newPostcard = {
                 image: currentImageDataUrl,
                 title: title,
                 creator: creator,
+                creatorUid: currentUserId, // 記錄上傳者的 UID
                 type: type,
                 lat: parsedLat,
                 lng: parsedLng,
                 locationString: parsedLocationString,
                 likes: 0,
-                liked: false,
+                status: newStatus, 
                 timestamp: new Date().toISOString()
             };
 
@@ -568,13 +545,12 @@
                 if (useFirebase) {
                     const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
                     await addDoc(colRef, newPostcard);
-                    window.showToast('已成功存入雲端圖鑑！');
-                } else {
-                    newPostcard.id = Date.now().toString();
-                    postcards.unshift(newPostcard);
-                    localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
-                    window.showToast('已成功存入本地圖鑑！');
-                    renderGallery();
+                    
+                    if (newStatus === 'approved') {
+                        window.showToast('已成功發布至雲端圖鑑！');
+                    } else {
+                        window.showToast('上傳成功！將等待管理員核准後公開。');
+                    }
                 }
                 
                 window.clearPreview();
@@ -587,46 +563,45 @@
                 previewLocation.className = "text-sm text-slate-500 font-medium truncate block";
             } catch (e) {
                 console.error("儲存失敗:", e);
-                window.showToast("儲存失敗，請檢查網路連線或儲存空間。");
+                window.showToast("儲存失敗，請檢查網路連線。");
             }
 
-            btnText.textContent = '儲存至圖鑑';
+            btnText.textContent = '上傳明信片';
             loadingSpinner.classList.add('hidden');
             addBtn.disabled = false;
             addBtn.classList.remove('opacity-75', 'cursor-not-allowed');
         });
 
+        // 管理員核准明信片
+        window.approvePostcard = async function(id) {
+            try {
+                if (useFirebase && currentUserId === ADMIN_UID) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
+                    await updateDoc(docRef, { status: 'approved' });
+                    window.showToast('已核准該明信片！公開顯示中。');
+                }
+            } catch(e) { console.error("核准失敗", e); }
+        };
+
         window.deletePostcard = async function(id) {
             try {
-                if (useFirebase && currentUserId) {
+                if (useFirebase && currentUserId === ADMIN_UID) {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id));
-                } else {
-                    postcards = postcards.filter(p => p.id !== id);
-                    localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
-                    renderGallery();
-                }
-                window.showToast('已刪除明信片');
+                    window.showToast('已刪除明信片');
+                } 
             } catch(e) { console.error("刪除失敗", e); }
         };
 
-        window.toggleLike = async function(id, currentLikes, isLiked) {
+        window.toggleLike = async function(id, currentLikes) {
             try {
                 if (useFirebase && currentUserId) {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
+                    // 為了簡化，目前設定點一次就加一個讚
                     await updateDoc(docRef, {
-                        liked: !isLiked,
-                        likes: isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1
+                        likes: currentLikes + 1
                     });
-                } else {
-                    const card = postcards.find(p => p.id === id);
-                    if (card) {
-                        card.liked = !isLiked;
-                        card.likes = isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
-                        localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
-                        renderGallery();
-                    }
                 }
-            } catch(e) { console.error("更新按讚狀態失敗", e); }
+            } catch(e) { console.error("按讚失敗", e); }
         };
 
         window.exportData = function() {
@@ -634,7 +609,9 @@
                 window.showToast('目前沒有可以匯出的明信片。');
                 return;
             }
-            const dataStr = JSON.stringify(postcards);
+            // 只匯出已核准的明信片
+            const approvedData = postcards.filter(c => !c.status || c.status === 'approved');
+            const dataStr = JSON.stringify(approvedData);
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -646,54 +623,53 @@
             window.showToast('備份檔案已下載！');
         };
 
-        window.importData = function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (Array.isArray(importedData)) {
-                        if (useFirebase && currentUserId) {
-                            window.showToast('雲端模式下請直接在其他電腦登入同一個帳號即可。');
-                        } else {
-                            postcards = importedData;
-                            localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
-                            renderGallery();
-                            window.showToast('備份已成功匯入！');
-                        }
-                    } else {
-                        window.showToast('備份檔案格式錯誤！');
-                    }
-                } catch (err) {
-                    window.showToast('讀取備份檔案失敗！');
-                }
-                event.target.value = '';
-            };
-            reader.readAsText(file);
-        };
-
         function renderGallery() {
-            countDisplay.textContent = postcards.length;
-            if (postcards.length === 0) {
+            // 👉 過濾顯示邏輯
+            const displayCards = postcards.filter(card => {
+                // 1. 管理員：可以看到所有卡片 (包含審核中)
+                if (currentUserId === ADMIN_UID) return true;
+                // 2. 一般使用者：可以看到已經 approved 的卡片 (或舊資料沒有 status 欄位的)
+                if (!card.status || card.status === 'approved') return true;
+                // 3. 上傳者本人：可以看到自己上傳但還在審核中的卡片
+                if (card.creatorUid === currentUserId) return true;
+                
+                return false;
+            });
+
+            // 更新總數顯示 (只顯示已核准的數量，讓外部看起來更真實)
+            const approvedCount = postcards.filter(c => !c.status || c.status === 'approved').length;
+            countDisplay.textContent = approvedCount;
+
+            if (displayCards.length === 0) {
                 gallery.innerHTML = '';
                 emptyState.classList.remove('hidden');
                 return;
             }
 
             emptyState.classList.add('hidden');
-            gallery.innerHTML = postcards.map(card => {
+            gallery.innerHTML = displayCards.map(card => {
                 const tagColor = card.type === 'mushroom' ? '#9333ea' : '#e11d48'; 
                 const tagText = card.type === 'mushroom' ? '#菇點' : '#花點';
                 const hash = String(new Date(card.timestamp).getTime()).slice(-10);
                 const likesCount = card.likes || 0;
-                const isLiked = card.liked || false;
-                const heartColorClass = isLiked ? 'text-red-500' : 'text-slate-400';
-                const heartFill = isLiked ? 'currentColor' : 'none';
+                
+                // 是否為等待審核狀態
+                const isPending = card.status === 'pending';
+                const pendingOverlay = isPending ? `
+                    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] z-10 flex items-center justify-center pointer-events-none">
+                        <span class="bg-yellow-500 text-slate-900 text-xs font-bold px-3 py-1 rounded shadow-lg transform -rotate-12">等待審核中</span>
+                    </div>
+                ` : '';
 
-                // 判斷是否顯示刪除按鈕 (僅管理員或本地模式顯示)
-                const showDeleteBtn = (!useFirebase) || (currentUserId === ADMIN_UID);
+                // 管理員專屬的「核准」按鈕
+                const approveBtnHtml = (currentUserId === ADMIN_UID && isPending) ? `
+                    <button onclick="window.approvePostcard('${card.id}')" class="absolute top-2 left-2 bg-green-500/90 text-white rounded-full px-3 py-1 text-[11px] font-bold shadow-lg hover:bg-green-600 transition z-20">
+                        ✅ 核准公開
+                    </button>
+                ` : '';
+
+                // 判斷是否顯示刪除按鈕 (僅管理員顯示)
+                const showDeleteBtn = (currentUserId === ADMIN_UID);
                 const deleteBtnHtml = showDeleteBtn ? `
                     <button onclick="window.deletePostcard('${card.id}')" class="absolute top-2 right-2 bg-red-500/90 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -701,7 +677,9 @@
                 ` : '';
 
                 return `
-                <div class="bg-[#1A2035] rounded-xl overflow-hidden border border-[#2A344A] flex flex-col relative group">
+                <div class="bg-[#1A2035] rounded-xl overflow-hidden border ${isPending ? 'border-yellow-500' : 'border-[#2A344A]'} flex flex-col relative group">
+                    ${pendingOverlay}
+                    ${approveBtnHtml}
                     ${deleteBtnHtml}
                     
                     <div class="bg-[#3B6EA5] p-2.5 pb-3">
@@ -710,7 +688,7 @@
                     </div>
                     
                     <div class="p-4 flex flex-col flex-grow bg-[#1A2035]">
-                        <div class="flex justify-between items-center mb-4">
+                        <div class="flex justify-between items-center mb-4 relative z-20">
                             <div class="flex items-center text-slate-400 text-xs">
                                 <span>By</span>
                                 <span class="text-white font-bold mx-1.5">${card.creator}</span>
@@ -718,14 +696,14 @@
                                 <span class="truncate max-w-[90px]">${hash}...</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <button onclick="window.toggleLike('${card.id}', ${likesCount}, ${isLiked})" class="flex items-center bg-[#2A344A] px-2 py-1 rounded text-xs text-white hover:bg-[#34415C] transition-colors border border-slate-700">
-                                    <svg class="w-3.5 h-3.5 mr-1 ${heartColorClass}" fill="${heartFill}" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                                <button onclick="window.toggleLike('${card.id}', ${likesCount})" class="flex items-center bg-[#2A344A] px-2 py-1 rounded text-xs text-white hover:bg-[#34415C] transition-colors border border-slate-700">
+                                    <svg class="w-3.5 h-3.5 mr-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                                     <span>${likesCount}</span>
                                 </button>
                             </div>
                         </div>
                         
-                        <div class="bg-[#121726] border border-[#2A344A] rounded p-2.5 flex justify-between items-center mb-3 group/copy cursor-pointer" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
+                        <div class="bg-[#121726] border border-[#2A344A] rounded p-2.5 flex justify-between items-center mb-3 group/copy cursor-pointer relative z-20" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
                             <span class="text-slate-300 font-mono text-xs tracking-wide">
                                 ${card.lat.toFixed(7)}, ${card.lng.toFixed(7)}
                             </span>
