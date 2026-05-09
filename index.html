@@ -52,10 +52,7 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="window.exportData()" class="text-xs bg-slate-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded border border-slate-600 transition flex items-center gap-1 shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        匯出備份
-                    </button>
+                    <!-- 匯出備份按鈕已移除 -->
                 </div>
                 <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
                     顯示總數: <span id="countDisplay" class="text-white font-bold">0</span>
@@ -379,25 +376,70 @@
             reader.readAsDataURL(file);
         }
 
-        // 貼上與拖曳事件...
-        window.addEventListener('paste', (e) => {
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-            for (let index in items) {
-                const item = items[index];
-                if (item.kind === 'file') {
-                    const blob = item.getAsFile();
-                    if (blob && blob.type.startsWith('image/')) {
-                        compressImage(blob, (dataUrl) => {
-                            currentImageDataUrl = dataUrl;
-                            previewImage.src = currentImageDataUrl;
-                            previewImage.classList.remove('hidden');
-                            removeImageBtn.classList.remove('hidden');
-                            placeholderText.classList.add('hidden');
-                            errorMsg.classList.add('hidden');
-                        });
-                        window.showToast('已偵測並貼上圖片！');
+        // 更新預覽畫面函式 (避免重複程式碼)
+        function updateImagePreview(dataUrl) {
+            currentImageDataUrl = dataUrl;
+            previewImage.src = currentImageDataUrl;
+            previewImage.classList.remove('hidden');
+            removeImageBtn.classList.remove('hidden');
+            placeholderText.classList.add('hidden');
+            errorMsg.classList.add('hidden');
+        }
+
+        // 貼上與拖曳事件... (增強支援 Excel/Word 等 Office 軟體圖片貼上)
+        window.addEventListener('paste', async (e) => {
+            const clipboardData = e.clipboardData || window.clipboardData;
+            if (!clipboardData) return;
+
+            let imageFound = false;
+
+            // 1. 優先嘗試直接讀取 files (部分瀏覽器支援較好)
+            if (clipboardData.files && clipboardData.files.length > 0) {
+                for (let i = 0; i < clipboardData.files.length; i++) {
+                    const file = clipboardData.files[i];
+                    if (file.type.startsWith('image/')) {
+                        compressImage(file, updateImagePreview);
+                        imageFound = true;
+                        break;
                     }
                 }
+            }
+
+            // 2. 如果沒找到，嘗試讀取 items (常規截圖)
+            if (!imageFound && clipboardData.items) {
+                for (let i = 0; i < clipboardData.items.length; i++) {
+                    const item = clipboardData.items[i];
+                    if (item.type.indexOf('image') !== -1) {
+                        const blob = item.getAsFile();
+                        if (blob) {
+                            compressImage(blob, updateImagePreview);
+                            imageFound = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 3. 終極備案：針對 Excel 等 Office 軟體 (圖片可能被轉成 HTML Base64)
+            if (!imageFound) {
+                const htmlData = clipboardData.getData('text/html');
+                if (htmlData) {
+                    const imgMatch = htmlData.match(/<img[^>]+src=["'](data:image\/[^;]+;base64,[^"']+)["']/i);
+                    if (imgMatch && imgMatch[1]) {
+                        try {
+                            const res = await fetch(imgMatch[1]);
+                            const blob = await res.blob();
+                            compressImage(blob, updateImagePreview);
+                            imageFound = true;
+                        } catch (err) {
+                            console.error("Excel HTML image parsing failed", err);
+                        }
+                    }
+                }
+            }
+
+            if (imageFound) {
+                window.showToast('已偵測並貼上圖片！');
             }
         });
 
@@ -410,18 +452,12 @@
             if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                 const file = e.dataTransfer.files[0];
                 if (file.type.startsWith('image/')) {
-                    compressImage(file, (dataUrl) => {
-                        currentImageDataUrl = dataUrl;
-                        previewImage.src = currentImageDataUrl;
-                        previewImage.classList.remove('hidden');
-                        removeImageBtn.classList.remove('hidden');
-                        placeholderText.classList.add('hidden');
-                        errorMsg.classList.add('hidden');
-                    });
+                    compressImage(file, updateImagePreview);
                 }
             }
         });
 
+        // 剪貼簿按鈕邏輯
         window.pasteFromClipboard = async function() {
             try {
                 const clipboardItems = await navigator.clipboard.read();
@@ -429,14 +465,7 @@
                     const imageTypes = clipboardItem.types.filter(type => type.startsWith('image/'));
                     if (imageTypes.length > 0) {
                         const blob = await clipboardItem.getType(imageTypes[0]);
-                        compressImage(blob, (dataUrl) => {
-                            currentImageDataUrl = dataUrl;
-                            previewImage.src = currentImageDataUrl;
-                            previewImage.classList.remove('hidden');
-                            removeImageBtn.classList.remove('hidden');
-                            placeholderText.classList.add('hidden');
-                            errorMsg.classList.add('hidden');
-                        });
+                        compressImage(blob, updateImagePreview);
                         window.showToast('已從剪貼簿匯入圖片！');
                         return;
                     }
@@ -452,14 +481,7 @@
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files && e.target.files[0]) {
-                compressImage(e.target.files[0], (dataUrl) => {
-                    currentImageDataUrl = dataUrl;
-                    previewImage.src = currentImageDataUrl;
-                    previewImage.classList.remove('hidden');
-                    removeImageBtn.classList.remove('hidden');
-                    placeholderText.classList.add('hidden');
-                    errorMsg.classList.add('hidden');
-                });
+                compressImage(e.target.files[0], updateImagePreview);
             }
         });
 
@@ -669,23 +691,7 @@
             } catch(e) { console.error("按讚失敗", e); }
         };
 
-        window.exportData = function() {
-            if (postcards.length === 0) {
-                window.showToast('目前沒有可以匯出的明信片。');
-                return;
-            }
-            const approvedData = postcards.filter(c => !c.status || c.status === 'approved');
-            const dataStr = JSON.stringify(approvedData);
-            const blob = new Blob([dataStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
-            a.download = `Pikmin_Backup_${dateStr}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            window.showToast('備份檔案已下載！');
-        };
+        // 匯出功能已移除
 
         function renderGallery() {
             // 👉 過濾顯示邏輯 (權限 + 頁籤分類)
