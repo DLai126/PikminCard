@@ -40,6 +40,17 @@
                 <p class="text-slate-400 text-sm">記錄您的花點與菇點明信片，支援 Ctrl+V 貼上圖片</p>
             </div>
             <div class="flex flex-col sm:flex-row items-end gap-3">
+                <div id="authArea" class="flex items-center gap-2">
+                    <button id="loginBtn" onclick="window.loginWithGoogle()" class="text-xs bg-white text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded border border-slate-300 transition flex items-center gap-1 shadow-sm font-bold">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        Google 登入
+                    </button>
+                    <div id="userInfo" class="hidden flex items-center gap-2 bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg">
+                        <img id="userAvatar" src="" class="w-5 h-5 rounded-full" alt="avatar">
+                        <span id="userName" class="text-xs text-white"></span>
+                        <button onclick="window.logout()" class="text-[10px] bg-slate-600 hover:bg-red-500 text-white px-2 py-0.5 rounded transition">登出</button>
+                    </div>
+                </div>
                 <div class="flex gap-2">
                     <button onclick="window.exportData()" class="text-xs bg-slate-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded border border-slate-600 transition flex items-center gap-1 shadow-sm">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -156,67 +167,126 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase 初始化與雙模狀態判斷
-        let useFirebase = true; // 👈 這裡強制改為 true
-        let app, auth, db;
-        const appId = 'my-pikmin-app'; // 可以自己取一個不重複的名字
-        let currentUserId = null;
-        let postcards = [];
-        let unsubscribeSnapshot = null;
+        // ==========================================
+        // ⚠️ 請在這裡修改您的設定 ⚠️
+        // ==========================================
+        let useFirebase = true; // 確保這裡是 true 才會連雲端
+        const appId = 'pikmin-postcards-app';
+        
+        // 1. 👇 填入您的 Google UID (防刪除保護)
+        const ADMIN_UID = '7zVTyv3yn9T47Rk2wnrC3IDK29x2';
 
-        // 👇 貼上您剛剛從 Firebase 複製出來的 config
+        // 2. 👇 貼上您剛剛從 Firebase 複製出來的 config
         const firebaseConfig = {
-            apiKey: "AIzaSyA5E_0Cb3InWPOYb-JCylMWDv1vdgEac1A",
+  apiKey: "AIzaSyA5E_0Cb3InWPOYb-JCylMWDv1vdgEac1A",
   authDomain: "pikmincard.firebaseapp.com",
+  databaseURL: "https://pikmincard-default-rtdb.firebaseio.com",
   projectId: "pikmincard",
   storageBucket: "pikmincard.firebasestorage.app",
   messagingSenderId: "428923825506",
   appId: "1:428923825506:web:b0c508dc9520d5a4f9103b",
   measurementId: "G-5X2MHNSZ8K"
 };
+        // ==========================================
+        let useFirebase = true; // 確保這裡是 true 才會連雲端
+        const appId = 'pikmin-postcards-app';
         
+        // 1. 👇 填入您的 Google UID (防刪除保護)
+        const ADMIN_UID = '您的UID_請填在這裡'; // 例如: 'aBcDeF1234567890xyz'
+
+        // 2. 👇 貼上您剛剛從 Firebase 複製出來的 config
+        const firebaseConfig = {
+            apiKey: "您的_API_KEY",
+            authDomain: "您的.firebaseapp.com",
+            projectId: "您的_Project_ID",
+            storageBucket: "您的.appspot.com",
+            messagingSenderId: "您的_Sender_ID",
+            appId: "您的_App_ID"
+        };
+        // ==========================================
+
+        let app, auth, db;
+        let currentUserId = null;
+        let postcards = [];
+        let unsubscribeSnapshot = null;
+
+        const loginBtn = document.getElementById('loginBtn');
+        const userInfo = document.getElementById('userInfo');
+        const userAvatar = document.getElementById('userAvatar');
+        const userName = document.getElementById('userName');
+
         // 啟動 Firebase
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-
-        // 認證流程 (僅雲端模式執行)
         if (useFirebase) {
-            const initAuth = async () => {
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch(e) {
-                    console.error("認證失敗", e);
-                }
-            };
-            initAuth();
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUserId = user.uid;
-                    loadPostcardsFromCloud();
-                } else {
-                    currentUserId = null;
-                    if(unsubscribeSnapshot) unsubscribeSnapshot();
-                }
-            });
+                const provider = new GoogleAuthProvider();
+
+                window.loginWithGoogle = async () => {
+                    try {
+                        await signInWithPopup(auth, provider);
+                    } catch (error) {
+                        console.error("Google 登入失敗", error);
+                        window.showToast("登入失敗：" + error.message);
+                    }
+                };
+
+                window.logout = () => {
+                    signOut(auth);
+                };
+
+                // 自動登入狀態監聽
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        console.log("👉 【管理員設定】您的 Google UID 是:", user.uid);
+                        
+                        // 更新介面
+                        loginBtn.classList.add('hidden');
+                        userInfo.classList.remove('hidden');
+                        userAvatar.src = user.photoURL || '';
+                        userName.textContent = user.displayName || '玩家';
+                        
+                        // 自動把玩家名稱填入為 Google 暱稱
+                        const creatorInput = document.getElementById('creatorInput');
+                        if (creatorInput && !creatorInput.value) {
+                            creatorInput.value = user.displayName || '';
+                        }
+
+                        loadPostcardsFromCloud();
+                    } else {
+                        currentUserId = null;
+                        
+                        // 恢復未登入介面
+                        loginBtn.classList.remove('hidden');
+                        userInfo.classList.add('hidden');
+                        document.getElementById('creatorInput').value = '';
+                        
+                        if(unsubscribeSnapshot) unsubscribeSnapshot();
+                        
+                        // 清空畫廊並顯示未登入狀態
+                        postcards = [];
+                        renderGallery();
+                    }
+                });
+            } catch(e) {
+                console.error("Firebase 初始化失敗，請檢查 Config", e);
+                alert("Firebase 初始化失敗，請檢查原始碼中的 Config 是否正確！");
+            }
         } else {
-            // 本地電腦執行時的流程
             console.log("啟用本地儲存模式 (LocalStorage)");
+            loginBtn.classList.add('hidden');
             setTimeout(loadPostcardsFromLocal, 100);
         }
 
         // 載入雲端資料庫
         function loadPostcardsFromCloud() {
             if (!currentUserId) return;
-            // 👉 修改這裡：使用符合平台安全規則的全域公開路徑
             const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
             unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
                 postcards = [];
@@ -295,7 +365,7 @@
             reader.readAsDataURL(file);
         }
 
-        // 貼上事件監聽 (全域 Ctrl+V 支援)
+        // 貼上事件監聽
         window.addEventListener('paste', (e) => {
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (let index in items) {
@@ -317,7 +387,7 @@
             }
         });
 
-        // 拖曳功能支援
+        // 拖曳功能
         const dropZone = document.getElementById('dropZone');
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-slate-800'); });
         dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-slate-800'); });
@@ -339,7 +409,7 @@
             }
         });
 
-        // 剪貼簿按鈕邏輯 (自動判斷權限)
+        // 剪貼簿按鈕邏輯
         window.pasteFromClipboard = async function() {
             try {
                 const clipboardItems = await navigator.clipboard.read();
@@ -361,7 +431,6 @@
                 }
                 window.showToast('剪貼簿中沒有圖片，請確認您複製的是圖片。');
             } catch (err) {
-                // 如果瀏覽器因安全限制阻擋，退回手動提示模式
                 window.focus(); 
                 dropZone.classList.add('border-blue-500', 'bg-slate-700');
                 window.showToast('👉 瀏覽器安全阻擋，請直接按下鍵盤 Ctrl+V 貼上圖片！');
@@ -383,7 +452,6 @@
             }
         });
 
-        // 清除預覽
         window.clearPreview = function() {
             currentImageDataUrl = null;
             fileInput.value = '';
@@ -417,7 +485,6 @@
             }
         }
 
-        // 顯示通知
         window.showToast = function(message) {
             const toast = document.getElementById('toast');
             document.getElementById('toastMsg').textContent = message;
@@ -446,7 +513,6 @@
             }
         });
 
-        // 複製到剪貼簿
         window.copyCoords = function(lat, lng) {
             const text = `${lat}, ${lng}`;
             const textArea = document.createElement("textarea");
@@ -463,7 +529,7 @@
         // 新增按鈕邏輯
         addBtn.addEventListener('click', async () => {
             if (useFirebase && !currentUserId) {
-                errorMsg.textContent = '系統連線中，請稍候再試。';
+                errorMsg.textContent = '請先點擊右上角登入 Google 帳號。';
                 errorMsg.classList.remove('hidden');
                 return;
             }
@@ -504,12 +570,10 @@
 
             try {
                 if (useFirebase) {
-                    // 👉 修改這裡：使用符合平台安全規則的全域公開路徑
                     const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
                     await addDoc(colRef, newPostcard);
                     window.showToast('已成功存入雲端圖鑑！');
                 } else {
-                    // 本地儲存邏輯
                     newPostcard.id = Date.now().toString();
                     postcards.unshift(newPostcard);
                     localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
@@ -517,7 +581,6 @@
                     renderGallery();
                 }
                 
-                // 清空表單
                 window.clearPreview();
                 titleInput.value = '';
                 coordsInput.value = '';
@@ -537,11 +600,9 @@
             addBtn.classList.remove('opacity-75', 'cursor-not-allowed');
         });
 
-        // 刪除明信片
         window.deletePostcard = async function(id) {
             try {
                 if (useFirebase && currentUserId) {
-                    // 👉 修改這裡：使用符合平台安全規則的全域公開路徑
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id));
                 } else {
                     postcards = postcards.filter(p => p.id !== id);
@@ -552,11 +613,9 @@
             } catch(e) { console.error("刪除失敗", e); }
         };
 
-        // 按讚切換功能
         window.toggleLike = async function(id, currentLikes, isLiked) {
             try {
                 if (useFirebase && currentUserId) {
-                    // 👉 修改這裡：使用符合平台安全規則的全域公開路徑
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
                     await updateDoc(docRef, {
                         liked: !isLiked,
@@ -574,7 +633,6 @@
             } catch(e) { console.error("更新按讚狀態失敗", e); }
         };
 
-        // 匯出資料
         window.exportData = function() {
             if (postcards.length === 0) {
                 window.showToast('目前沒有可以匯出的明信片。');
@@ -585,7 +643,6 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            // 檔名加上當下日期時間
             const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
             a.download = `Pikmin_Backup_${dateStr}.json`;
             a.click();
@@ -593,7 +650,6 @@
             window.showToast('備份檔案已下載！');
         };
 
-        // 匯入資料
         window.importData = function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -603,11 +659,9 @@
                 try {
                     const importedData = JSON.parse(e.target.result);
                     if (Array.isArray(importedData)) {
-                        
                         if (useFirebase && currentUserId) {
                             window.showToast('雲端模式下請直接在其他電腦登入同一個帳號即可。');
                         } else {
-                            // 本地模式：覆蓋並儲存
                             postcards = importedData;
                             localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
                             renderGallery();
@@ -619,12 +673,11 @@
                 } catch (err) {
                     window.showToast('讀取備份檔案失敗！');
                 }
-                event.target.value = ''; // 讓同一個檔案可以重複選取
+                event.target.value = '';
             };
             reader.readAsText(file);
         };
 
-        // 渲染畫廊
         function renderGallery() {
             countDisplay.textContent = postcards.length;
             if (postcards.length === 0) {
@@ -643,11 +696,17 @@
                 const heartColorClass = isLiked ? 'text-red-500' : 'text-slate-400';
                 const heartFill = isLiked ? 'currentColor' : 'none';
 
-                return `
-                <div class="bg-[#1A2035] rounded-xl overflow-hidden border border-[#2A344A] flex flex-col relative group">
+                // 判斷是否顯示刪除按鈕 (僅管理員或本地模式顯示)
+                const showDeleteBtn = (!useFirebase) || (currentUserId === ADMIN_UID);
+                const deleteBtnHtml = showDeleteBtn ? `
                     <button onclick="window.deletePostcard('${card.id}')" class="absolute top-2 right-2 bg-red-500/90 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
+                ` : '';
+
+                return `
+                <div class="bg-[#1A2035] rounded-xl overflow-hidden border border-[#2A344A] flex flex-col relative group">
+                    ${deleteBtnHtml}
                     
                     <div class="bg-[#3B6EA5] p-2.5 pb-3">
                         <img src="${card.image}" alt="明信片" class="w-full h-[180px] object-cover rounded-md shadow-inner" loading="lazy">
