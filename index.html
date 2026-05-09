@@ -160,7 +160,7 @@
     </div>
 
     <!-- 訊息提示元件 -->
-    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-600 text-white px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-2">
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-600 text-white px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-2 z-[100]">
         <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
         <span id="toastMsg">操作成功！</span>
     </div>
@@ -174,37 +174,21 @@
         // ⚠️ 請在這裡修改您的設定 ⚠️
         // ==========================================
         let useFirebase = true; // 確保這裡是 true 才會連雲端
-        const appId = 'pikmin-postcards-app';
+        const appId = 'pikmincard';
         
         // 1. 👇 填入您的 Google UID (防刪除保護)
         const ADMIN_UID = '7zVTyv3yn9T47Rk2wnrC3IDK29x2';
 
         // 2. 👇 貼上您剛剛從 Firebase 複製出來的 config
         const firebaseConfig = {
-  apiKey: "AIzaSyA5E_0Cb3InWPOYb-JCylMWDv1vdgEac1A",
-  authDomain: "pikmincard.firebaseapp.com",
-  databaseURL: "https://pikmincard-default-rtdb.firebaseio.com",
-  projectId: "pikmincard",
-  storageBucket: "pikmincard.firebasestorage.app",
-  messagingSenderId: "428923825506",
-  appId: "1:428923825506:web:b0c508dc9520d5a4f9103b",
-  measurementId: "G-5X2MHNSZ8K"
-};
-        // ==========================================
-        let useFirebase = true; // 確保這裡是 true 才會連雲端
-        const appId = 'pikmin-postcards-app';
-        
-        // 1. 👇 填入您的 Google UID (防刪除保護)
-        const ADMIN_UID = '您的UID_請填在這裡'; // 例如: 'aBcDeF1234567890xyz'
-
-        // 2. 👇 貼上您剛剛從 Firebase 複製出來的 config
-        const firebaseConfig = {
-            apiKey: "您的_API_KEY",
-            authDomain: "您的.firebaseapp.com",
-            projectId: "您的_Project_ID",
-            storageBucket: "您的.appspot.com",
-            messagingSenderId: "您的_Sender_ID",
-            appId: "您的_App_ID"
+            apiKey: "AIzaSyA5E_0Cb3InWPOYb-JCylMWDv1vdgEac1A",
+            authDomain: "pikmincard.firebaseapp.com",
+            databaseURL: "https://pikmincard-default-rtdb.firebaseio.com",
+            projectId: "pikmincard",
+            storageBucket: "pikmincard.firebasestorage.app",
+            messagingSenderId: "428923825506",
+            appId: "1:428923825506:web:b0c508dc9520d5a4f9103b",
+            measurementId: "G-5X2MHNSZ8K"
         };
         // ==========================================
 
@@ -221,66 +205,78 @@
         // 啟動 Firebase
         if (useFirebase) {
             try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
+                if (Object.keys(firebaseConfig).length === 0) {
+                     console.warn("⚠️ Firebase Config 尚未設定，將切換至本地模式。請記得填入金鑰！");
+                     useFirebase = false;
+                     startLocalMode();
+                } else {
+                    app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
 
-                const provider = new GoogleAuthProvider();
+                    const provider = new GoogleAuthProvider();
 
-                window.loginWithGoogle = async () => {
-                    try {
-                        await signInWithPopup(auth, provider);
-                    } catch (error) {
-                        console.error("Google 登入失敗", error);
-                        window.showToast("登入失敗：" + error.message);
-                    }
-                };
-
-                window.logout = () => {
-                    signOut(auth);
-                };
-
-                // 自動登入狀態監聽
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        currentUserId = user.uid;
-                        console.log("👉 【管理員設定】您的 Google UID 是:", user.uid);
-                        
-                        // 更新介面
-                        loginBtn.classList.add('hidden');
-                        userInfo.classList.remove('hidden');
-                        userAvatar.src = user.photoURL || '';
-                        userName.textContent = user.displayName || '玩家';
-                        
-                        // 自動把玩家名稱填入為 Google 暱稱
-                        const creatorInput = document.getElementById('creatorInput');
-                        if (creatorInput && !creatorInput.value) {
-                            creatorInput.value = user.displayName || '';
+                    window.loginWithGoogle = async () => {
+                        try {
+                            await signInWithPopup(auth, provider);
+                        } catch (error) {
+                            console.error("Google 登入失敗", error);
+                            window.showToast("登入失敗：" + error.message);
                         }
+                    };
 
-                        loadPostcardsFromCloud();
-                    } else {
-                        currentUserId = null;
-                        
-                        // 恢復未登入介面
-                        loginBtn.classList.remove('hidden');
-                        userInfo.classList.add('hidden');
-                        document.getElementById('creatorInput').value = '';
-                        
-                        if(unsubscribeSnapshot) unsubscribeSnapshot();
-                        
-                        // 清空畫廊並顯示未登入狀態
-                        postcards = [];
-                        renderGallery();
-                    }
-                });
+                    window.logout = () => {
+                        signOut(auth);
+                    };
+
+                    // 自動登入狀態監聽
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            currentUserId = user.uid;
+                            console.log("👉 【管理員設定】您的 Google UID 是:", user.uid);
+                            
+                            // 更新介面
+                            loginBtn.classList.add('hidden');
+                            userInfo.classList.remove('hidden');
+                            userAvatar.src = user.photoURL || '';
+                            userName.textContent = user.displayName || '玩家';
+                            
+                            // 自動把玩家名稱填入為 Google 暱稱
+                            const creatorInput = document.getElementById('creatorInput');
+                            if (creatorInput && !creatorInput.value) {
+                                creatorInput.value = user.displayName || '';
+                            }
+
+                            loadPostcardsFromCloud();
+                        } else {
+                            currentUserId = null;
+                            
+                            // 恢復未登入介面
+                            loginBtn.classList.remove('hidden');
+                            userInfo.classList.add('hidden');
+                            document.getElementById('creatorInput').value = '';
+                            
+                            if(unsubscribeSnapshot) unsubscribeSnapshot();
+                            
+                            // 清空畫廊並顯示未登入狀態
+                            postcards = [];
+                            renderGallery();
+                        }
+                    });
+                }
             } catch(e) {
                 console.error("Firebase 初始化失敗，請檢查 Config", e);
                 alert("Firebase 初始化失敗，請檢查原始碼中的 Config 是否正確！");
+                useFirebase = false;
+                startLocalMode();
             }
         } else {
+             startLocalMode();
+        }
+
+        function startLocalMode() {
             console.log("啟用本地儲存模式 (LocalStorage)");
-            loginBtn.classList.add('hidden');
+            if(loginBtn) loginBtn.classList.add('hidden');
             setTimeout(loadPostcardsFromLocal, 100);
         }
 
