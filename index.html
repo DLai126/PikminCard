@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>皮克敏明信片收藏</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定義深色捲軸樣式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; /* slate-900 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; /* slate-700 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; /* slate-600 */
+        }
+        .image-fit {
+            object-fit: cover;
+            width: 100%;
+            height: 180px;
+        }
+    </style>
+</head>
+<body class="bg-[#0B1120] min-h-screen font-sans text-slate-200">
+
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <!-- Header -->
+        <header class="mb-8 flex justify-between items-end border-b border-slate-800 pb-4">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold text-white mb-2 flex items-center gap-3">
+                    🌱 皮克敏明信片圖鑑
+                </h1>
+                <p class="text-slate-400 text-sm">記錄您的花點與菇點明信片，支援 Ctrl+V 貼上圖片</p>
+            </div>
+            <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                收藏總數: <span id="countDisplay" class="text-white font-bold">0</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- Left Column: Input Form -->
+            <div class="lg:col-span-1 bg-[#1E293B] p-5 rounded-xl border border-slate-700 h-fit shadow-xl">
+                <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">➕ 新增明信片</h2>
+                
+                <!-- Image Input -->
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5">圖片來源 (上傳或貼上)</label>
+                    <div id="dropZone" class="border-2 border-dashed border-slate-600 rounded-lg p-3 text-center hover:border-blue-500 hover:bg-slate-800 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[120px] relative overflow-hidden" onclick="document.getElementById('fileInput').click()">
+                        
+                        <div id="placeholderText" class="text-slate-400">
+                            <svg class="mx-auto h-8 w-8 mb-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p class="text-xs">點擊、拖曳、或 Ctrl+V</p>
+                            <button id="clipboardBtn" class="mt-2 px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white transition z-20 relative shadow-sm border border-slate-600" onclick="event.stopPropagation(); window.pasteFromClipboard();">
+                                📋 從剪貼簿讀取
+                            </button>
+                        </div>
+                        
+                        <img id="previewImage" src="" alt="預覽" class="hidden absolute inset-0 w-full h-full object-cover z-10" />
+                        <button id="removeImageBtn" class="hidden absolute top-1 right-1 z-20 bg-red-500/80 text-white rounded-full p-1 hover:bg-red-600 transition" onclick="event.stopPropagation(); clearPreview();">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    <input type="file" id="fileInput" class="hidden" accept="image/*">
+                </div>
+
+                <!-- Info Inputs -->
+                <div class="space-y-3 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">明信片名稱</label>
+                        <input type="text" id="titleInput" placeholder="例如: 無邊際泳池" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">玩家名稱</label>
+                            <input type="text" id="creatorInput" placeholder="例如: Jenma" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">類型</label>
+                            <select id="typeInput" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white">
+                                <option value="mushroom">🍄 菇點</option>
+                                <option value="flower">🌸 花點</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">座標 (可直接貼上 緯度, 經度)</label>
+                        <input type="text" id="coordsInput" placeholder="例如: 26.687957, 128.003198" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600 font-mono">
+                    </div>
+                    
+                    <div class="bg-slate-800/50 p-2.5 rounded-md border border-slate-700/50 flex items-center gap-2">
+                        <span class="text-xl">📍</span>
+                        <div class="flex-1 overflow-hidden">
+                            <span class="text-[10px] text-slate-400 block mb-0.5">自動解析地點：</span>
+                            <span id="previewLocation" class="text-sm text-slate-500 font-medium truncate block">尚未輸入座標</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="addBtn" class="w-full bg-[#3B6EA5] text-white font-medium py-2 rounded-md hover:bg-blue-600 transition shadow flex justify-center items-center text-sm">
+                    <span id="btnText">儲存至圖鑑</span>
+                    <svg id="loadingSpinner" class="hidden animate-spin ml-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+                <p id="errorMsg" class="text-red-400 text-xs mt-2 hidden"></p>
+            </div>
+
+            <!-- Right Column: Gallery -->
+            <div class="lg:col-span-3">
+                <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <!-- 明信片卡片會在這裡生成 -->
+                </div>
+
+                <div id="emptyState" class="hidden text-center py-20 bg-[#1E293B] rounded-xl border border-slate-700 shadow-sm mt-0">
+                    <span class="text-5xl mb-4 block">📭</span>
+                    <p class="text-slate-400">目前圖鑑空空如也，趕快新增第一張皮克敏明信片吧！</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 訊息提示元件 -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-600 text-white px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-2">
+        <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span id="toastMsg">操作成功！</span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase 初始化與雙模狀態判斷
+        let useFirebase = false;
+        let app, auth, db;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'local-pikmin-app';
+        let currentUserId = null;
+        let postcards = [];
+        let unsubscribeSnapshot = null;
+
+        try {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                if (Object.keys(firebaseConfig).length > 0) {
+                    app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                    useFirebase = true;
+                }
+            }
+        } catch(e) {
+            console.warn("未偵測到 Firebase 配置，切換至本地模式");
+        }
+
+        // 認證流程 (僅雲端模式執行)
+        if (useFirebase) {
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch(e) {
+                    console.error("認證失敗", e);
+                }
+            };
+            initAuth();
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUserId = user.uid;
+                    loadPostcardsFromCloud();
+                } else {
+                    currentUserId = null;
+                    if(unsubscribeSnapshot) unsubscribeSnapshot();
+                }
+            });
+        } else {
+            // 本地電腦執行時的流程
+            console.log("啟用本地儲存模式 (LocalStorage)");
+            setTimeout(loadPostcardsFromLocal, 100);
+        }
+
+        // 載入雲端資料庫
+        function loadPostcardsFromCloud() {
+            if (!currentUserId) return;
+            const colRef = collection(db, 'artifacts', appId, 'users', currentUserId, 'postcards');
+            unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
+                postcards = [];
+                snapshot.forEach(docSnap => {
+                    postcards.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                postcards.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                renderGallery();
+            }, (error) => {
+                console.error("讀取資料失敗", error);
+            });
+        }
+
+        // 載入本地資料庫
+        function loadPostcardsFromLocal() {
+            try {
+                const stored = localStorage.getItem('pikmin_postcards_local');
+                if (stored) {
+                    postcards = JSON.parse(stored);
+                    postcards.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                }
+            } catch(e) {
+                console.error("讀取本地資料失敗", e);
+            }
+            renderGallery();
+        }
+
+        // DOM 元素
+        const fileInput = document.getElementById('fileInput');
+        const previewImage = document.getElementById('previewImage');
+        const placeholderText = document.getElementById('placeholderText');
+        const removeImageBtn = document.getElementById('removeImageBtn');
+        const titleInput = document.getElementById('titleInput');
+        const creatorInput = document.getElementById('creatorInput');
+        const typeInput = document.getElementById('typeInput');
+        const coordsInput = document.getElementById('coordsInput');
+        const previewLocation = document.getElementById('previewLocation');
+        const addBtn = document.getElementById('addBtn');
+        const gallery = document.getElementById('gallery');
+        const emptyState = document.getElementById('emptyState');
+        const countDisplay = document.getElementById('countDisplay');
+        const btnText = document.getElementById('btnText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const errorMsg = document.getElementById('errorMsg');
+
+        let currentImageDataUrl = null;
+        let parsedLat = null;
+        let parsedLng = null;
+        let parsedLocationString = "未知地點";
+
+        // 圖片壓縮函數
+        function compressImage(file, callback) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const max_dim = 800; 
+
+                    if (width > height) {
+                        if (width > max_dim) { height *= max_dim / width; width = max_dim; }
+                    } else {
+                        if (height > max_dim) { width *= max_dim / height; height = max_dim; }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    callback(dataUrl);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 貼上事件監聽 (全域 Ctrl+V 支援)
+        window.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let index in items) {
+                const item = items[index];
+                if (item.kind === 'file') {
+                    const blob = item.getAsFile();
+                    if (blob && blob.type.startsWith('image/')) {
+                        compressImage(blob, (dataUrl) => {
+                            currentImageDataUrl = dataUrl;
+                            previewImage.src = currentImageDataUrl;
+                            previewImage.classList.remove('hidden');
+                            removeImageBtn.classList.remove('hidden');
+                            placeholderText.classList.add('hidden');
+                            errorMsg.classList.add('hidden');
+                        });
+                        window.showToast('已偵測並貼上圖片！');
+                    }
+                }
+            }
+        });
+
+        // 拖曳功能支援
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-slate-800'); });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-slate-800'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500', 'bg-slate-800');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.startsWith('image/')) {
+                    compressImage(file, (dataUrl) => {
+                        currentImageDataUrl = dataUrl;
+                        previewImage.src = currentImageDataUrl;
+                        previewImage.classList.remove('hidden');
+                        removeImageBtn.classList.remove('hidden');
+                        placeholderText.classList.add('hidden');
+                        errorMsg.classList.add('hidden');
+                    });
+                }
+            }
+        });
+
+        // 剪貼簿按鈕邏輯 (自動判斷權限)
+        window.pasteFromClipboard = async function() {
+            try {
+                const clipboardItems = await navigator.clipboard.read();
+                for (const clipboardItem of clipboardItems) {
+                    const imageTypes = clipboardItem.types.filter(type => type.startsWith('image/'));
+                    if (imageTypes.length > 0) {
+                        const blob = await clipboardItem.getType(imageTypes[0]);
+                        compressImage(blob, (dataUrl) => {
+                            currentImageDataUrl = dataUrl;
+                            previewImage.src = currentImageDataUrl;
+                            previewImage.classList.remove('hidden');
+                            removeImageBtn.classList.remove('hidden');
+                            placeholderText.classList.add('hidden');
+                            errorMsg.classList.add('hidden');
+                        });
+                        window.showToast('已從剪貼簿匯入圖片！');
+                        return;
+                    }
+                }
+                window.showToast('剪貼簿中沒有圖片，請確認您複製的是圖片。');
+            } catch (err) {
+                // 如果瀏覽器因安全限制阻擋，退回手動提示模式
+                window.focus(); 
+                dropZone.classList.add('border-blue-500', 'bg-slate-700');
+                window.showToast('👉 瀏覽器安全阻擋，請直接按下鍵盤 Ctrl+V 貼上圖片！');
+                setTimeout(() => { dropZone.classList.remove('border-blue-500', 'bg-slate-700'); }, 2000);
+            }
+        };
+
+        // 選擇檔案事件
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                compressImage(e.target.files[0], (dataUrl) => {
+                    currentImageDataUrl = dataUrl;
+                    previewImage.src = currentImageDataUrl;
+                    previewImage.classList.remove('hidden');
+                    removeImageBtn.classList.remove('hidden');
+                    placeholderText.classList.add('hidden');
+                    errorMsg.classList.add('hidden');
+                });
+            }
+        });
+
+        // 清除預覽
+        window.clearPreview = function() {
+            currentImageDataUrl = null;
+            fileInput.value = '';
+            previewImage.src = '';
+            previewImage.classList.add('hidden');
+            removeImageBtn.classList.add('hidden');
+            placeholderText.classList.remove('hidden');
+        };
+
+        // 取得地點名稱
+        async function fetchLocationName(lat, lng) {
+            try {
+                const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+                const response = await fetch(url, { headers: { 'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8' } });
+                if (!response.ok) throw new Error('API 請求失敗');
+                const data = await response.json();
+                if (data && data.address) {
+                    const addr = data.address;
+                    const country = addr.country || '';
+                    const level1 = addr.state || addr.province || addr.county || '';
+                    const level2 = addr.city || addr.town || addr.city_district || addr.district || '';
+                    const level3 = addr.village || addr.suburb || addr.neighbourhood || addr.road || '';
+                    let parts = [country, level1, level2, level3].filter(Boolean);
+                    parts = [...new Set(parts)];
+                    return parts.join('・') || "未知地點";
+                }
+                return "未知地點";
+            } catch (error) {
+                console.error("Geocoding error:", error);
+                return "解析失敗";
+            }
+        }
+
+        // 顯示通知
+        window.showToast = function(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 3000);
+        };
+
+        // 監聽座標輸入框
+        coordsInput.addEventListener('input', async (e) => {
+            const val = e.target.value.trim();
+            const match = val.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
+            if (match && match.length === 3) {
+                parsedLat = parseFloat(match[1]);
+                parsedLng = parseFloat(match[2]);
+                previewLocation.textContent = "地點解析中...";
+                previewLocation.className = "text-sm text-blue-400 font-medium truncate block animate-pulse";
+                parsedLocationString = await fetchLocationName(parsedLat, parsedLng);
+                previewLocation.textContent = parsedLocationString;
+                previewLocation.className = "text-sm text-green-400 font-medium truncate block";
+            } else {
+                parsedLat = null;
+                parsedLng = null;
+                parsedLocationString = "未知地點";
+                previewLocation.textContent = val.length > 0 ? "座標格式錯誤..." : "尚未輸入座標";
+                previewLocation.className = "text-sm text-slate-500 font-medium truncate block";
+            }
+        });
+
+        // 複製到剪貼簿
+        window.copyCoords = function(lat, lng) {
+            const text = `${lat}, ${lng}`;
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                window.showToast('已複製座標！');
+            } catch (err) {}
+            document.body.removeChild(textArea);
+        };
+
+        // 新增按鈕邏輯
+        addBtn.addEventListener('click', async () => {
+            if (useFirebase && !currentUserId) {
+                errorMsg.textContent = '系統連線中，請稍候再試。';
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+
+            const title = titleInput.value.trim() || '未命名明信片';
+            const creator = creatorInput.value.trim() || '匿名玩家';
+            const type = typeInput.value;
+
+            if (!currentImageDataUrl) {
+                errorMsg.textContent = '請先上傳或貼上圖片。';
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+            if (parsedLat === null || parsedLng === null) {
+                errorMsg.textContent = '請輸入或貼上有效的座標。';
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+
+            errorMsg.classList.add('hidden');
+            btnText.textContent = '處理中...';
+            loadingSpinner.classList.remove('hidden');
+            addBtn.disabled = true;
+            addBtn.classList.add('opacity-75', 'cursor-not-allowed');
+
+            const newPostcard = {
+                image: currentImageDataUrl,
+                title: title,
+                creator: creator,
+                type: type,
+                lat: parsedLat,
+                lng: parsedLng,
+                locationString: parsedLocationString,
+                likes: 0,
+                liked: false,
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                if (useFirebase) {
+                    const colRef = collection(db, 'artifacts', appId, 'users', currentUserId, 'postcards');
+                    await addDoc(colRef, newPostcard);
+                    window.showToast('已成功存入雲端圖鑑！');
+                } else {
+                    // 本地儲存邏輯
+                    newPostcard.id = Date.now().toString();
+                    postcards.unshift(newPostcard);
+                    localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
+                    window.showToast('已成功存入本地圖鑑！');
+                    renderGallery();
+                }
+                
+                // 清空表單
+                window.clearPreview();
+                titleInput.value = '';
+                coordsInput.value = '';
+                parsedLat = null;
+                parsedLng = null;
+                parsedLocationString = "未知地點";
+                previewLocation.textContent = "尚未輸入座標";
+                previewLocation.className = "text-sm text-slate-500 font-medium truncate block";
+            } catch (e) {
+                console.error("儲存失敗:", e);
+                window.showToast("儲存失敗，請檢查網路連線或儲存空間。");
+            }
+
+            btnText.textContent = '儲存至圖鑑';
+            loadingSpinner.classList.add('hidden');
+            addBtn.disabled = false;
+            addBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+        });
+
+        // 刪除明信片
+        window.deletePostcard = async function(id) {
+            try {
+                if (useFirebase && currentUserId) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUserId, 'postcards', id));
+                } else {
+                    postcards = postcards.filter(p => p.id !== id);
+                    localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
+                    renderGallery();
+                }
+                window.showToast('已刪除明信片');
+            } catch(e) { console.error("刪除失敗", e); }
+        };
+
+        // 按讚切換功能
+        window.toggleLike = async function(id, currentLikes, isLiked) {
+            try {
+                if (useFirebase && currentUserId) {
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'postcards', id);
+                    await updateDoc(docRef, {
+                        liked: !isLiked,
+                        likes: isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1
+                    });
+                } else {
+                    const card = postcards.find(p => p.id === id);
+                    if (card) {
+                        card.liked = !isLiked;
+                        card.likes = isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
+                        localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
+                        renderGallery();
+                    }
+                }
+            } catch(e) { console.error("更新按讚狀態失敗", e); }
+        };
+
+        // 渲染畫廊
+        function renderGallery() {
+            countDisplay.textContent = postcards.length;
+            if (postcards.length === 0) {
+                gallery.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            gallery.innerHTML = postcards.map(card => {
+                const tagColor = card.type === 'mushroom' ? '#9333ea' : '#e11d48'; 
+                const tagText = card.type === 'mushroom' ? '#菇點' : '#花點';
+                const hash = String(new Date(card.timestamp).getTime()).slice(-10);
+                const likesCount = card.likes || 0;
+                const isLiked = card.liked || false;
+                const heartColorClass = isLiked ? 'text-red-500' : 'text-slate-400';
+                const heartFill = isLiked ? 'currentColor' : 'none';
+
+                return `
+                <div class="bg-[#1A2035] rounded-xl overflow-hidden border border-[#2A344A] flex flex-col relative group">
+                    <button onclick="window.deletePostcard('${card.id}')" class="absolute top-2 right-2 bg-red-500/90 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                    
+                    <div class="bg-[#3B6EA5] p-2.5 pb-3">
+                        <img src="${card.image}" alt="明信片" class="w-full h-[180px] object-cover rounded-md shadow-inner" loading="lazy">
+                        <h3 class="text-white font-bold text-[15px] mt-2.5 px-1 truncate shadow-sm">${card.title}</h3>
+                    </div>
+                    
+                    <div class="p-4 flex flex-col flex-grow bg-[#1A2035]">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="flex items-center text-slate-400 text-xs">
+                                <span>By</span>
+                                <span class="text-white font-bold mx-1.5">${card.creator}</span>
+                                <span class="text-[10px] bg-slate-800 px-1 rounded mr-1">🌱</span>
+                                <span class="truncate max-w-[90px]">${hash}...</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="window.toggleLike('${card.id}', ${likesCount}, ${isLiked})" class="flex items-center bg-[#2A344A] px-2 py-1 rounded text-xs text-white hover:bg-[#34415C] transition-colors border border-slate-700">
+                                    <svg class="w-3.5 h-3.5 mr-1 ${heartColorClass}" fill="${heartFill}" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                                    <span>${likesCount}</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-[#121726] border border-[#2A344A] rounded p-2.5 flex justify-between items-center mb-3 group/copy cursor-pointer" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
+                            <span class="text-slate-300 font-mono text-xs tracking-wide">
+                                ${card.lat.toFixed(7)}, ${card.lng.toFixed(7)}
+                            </span>
+                            <button class="text-slate-500 group-hover/copy:text-white transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                            </button>
+                        </div>
+                        
+                        <div class="flex gap-2 mb-4">
+                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">${tagText}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">#風景</span>
+                        </div>
+                        
+                        <div class="mt-auto pt-3 border-t border-[#2A344A]">
+                            <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                                <div class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: ${tagColor}"></div>
+                                <span class="truncate" title="${card.locationString}">${card.locationString}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
