@@ -147,27 +147,15 @@
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase 初始化與雙模狀態判斷
-        let useFirebase = false;
-        let app, auth, db;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'local-pikmin-app';
-        let currentUserId = null;
-        let postcards = [];
-        let unsubscribeSnapshot = null;
-
-        try {
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                const firebaseConfig = JSON.parse(__firebase_config);
-                if (Object.keys(firebaseConfig).length > 0) {
-                    app = initializeApp(firebaseConfig);
-                    auth = getAuth(app);
-                    db = getFirestore(app);
-                    useFirebase = true;
-                }
-            }
-        } catch(e) {
-            console.warn("未偵測到 Firebase 配置，切換至本地模式");
-        }
-
+        const firebaseConfig = {
+  apiKey: "AIzaSyA5E_0Cb3InWPOYb-JCylMWDv1vdgEac1A",
+  authDomain: "pikmincard.firebaseapp.com",
+  projectId: "pikmincard",
+  storageBucket: "pikmincard.firebasestorage.app",
+  messagingSenderId: "428923825506",
+  appId: "1:428923825506:web:b0c508dc9520d5a4f9103b",
+  measurementId: "G-5X2MHNSZ8K"
+};
         // 認證流程 (僅雲端模式執行)
         if (useFirebase) {
             const initAuth = async () => {
