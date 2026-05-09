@@ -160,7 +160,7 @@
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase 初始化與雙模狀態判斷
-        let useFirebase = true; // 👉 這裡改成 true
+        let useFirebase = true; // 👈 這裡強制改為 true
         let app, auth, db;
         const appId = 'my-pikmin-app'; // 可以自己取一個不重複的名字
         let currentUserId = null;
@@ -216,7 +216,8 @@
         // 載入雲端資料庫
         function loadPostcardsFromCloud() {
             if (!currentUserId) return;
-            const colRef = collection(db, 'artifacts', appId, 'users', currentUserId, 'postcards');
+            // 👉 修改這裡：使用符合平台安全規則的全域公開路徑
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
             unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
                 postcards = [];
                 snapshot.forEach(docSnap => {
@@ -503,7 +504,8 @@
 
             try {
                 if (useFirebase) {
-                    const colRef = collection(db, 'artifacts', appId, 'users', currentUserId, 'postcards');
+                    // 👉 修改這裡：使用符合平台安全規則的全域公開路徑
+                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
                     await addDoc(colRef, newPostcard);
                     window.showToast('已成功存入雲端圖鑑！');
                 } else {
@@ -539,7 +541,8 @@
         window.deletePostcard = async function(id) {
             try {
                 if (useFirebase && currentUserId) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUserId, 'postcards', id));
+                    // 👉 修改這裡：使用符合平台安全規則的全域公開路徑
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id));
                 } else {
                     postcards = postcards.filter(p => p.id !== id);
                     localStorage.setItem('pikmin_postcards_local', JSON.stringify(postcards));
@@ -553,7 +556,8 @@
         window.toggleLike = async function(id, currentLikes, isLiked) {
             try {
                 if (useFirebase && currentUserId) {
-                    const docRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'postcards', id);
+                    // 👉 修改這裡：使用符合平台安全規則的全域公開路徑
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
                     await updateDoc(docRef, {
                         liked: !isLiked,
                         likes: isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1
