@@ -116,6 +116,11 @@
                     </div>
 
                     <div class="mb-2">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">自訂標籤 (選填)</label>
+                        <input type="text" id="customTagInput" placeholder="例如：風景 (不填則不顯示)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
+                    </div>
+
+                    <div class="mb-2">
                         <label class="block text-xs font-medium text-slate-400 mb-1">座標 (可直接貼上 緯度, 經度)</label>
                         <input type="text" id="coordsInput" placeholder="例如: 26.687957, 128.003198" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600 font-mono">
                     </div>
@@ -204,6 +209,33 @@
             <div class="flex justify-end gap-3 relative z-10">
                 <button onclick="window.closeConfirmModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm transition font-medium">取消</button>
                 <button id="cmConfirmBtn" class="px-4 py-2 text-white rounded-md text-sm transition font-bold shadow-lg">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✏️ 編輯明信片 Modal -->
+    <div id="editModal" class="hidden fixed inset-0 z-[1160] bg-black/70 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-[#1E293B] border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full relative overflow-hidden">
+            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2 relative z-10">
+                ✏️ 修改明信片資訊
+            </h3>
+            <div class="space-y-4 mb-6 relative z-10">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">類型</label>
+                    <select id="editTypeInput" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white">
+                        <option value="mushroom">🍄 菇點</option>
+                        <option value="flower">🌸 花點</option>
+                        <option value="hidden_flower">🤫 隱藏花點</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">自訂標籤 (選填)</label>
+                    <input type="text" id="editTagInput" placeholder="不填寫則不顯示" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 relative z-10">
+                <button onclick="window.closeEditModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm transition font-medium">取消</button>
+                <button onclick="window.confirmEditPostcard()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition font-bold shadow-lg">儲存修改</button>
             </div>
         </div>
     </div>
@@ -613,6 +645,10 @@
             const title = titleInput.value.trim() || '未命名明信片';
             const creator = creatorInput.value.trim() || '匿名玩家';
             const type = typeInput.value;
+            
+            // 抓取自訂標籤，並過濾掉使用者多打的 # 符號
+            let customTag = document.getElementById('customTagInput').value.trim();
+            if (customTag.startsWith('#')) customTag = customTag.substring(1);
 
             if (!currentImageDataUrl) {
                 document.getElementById('errorMsg').textContent = '請先上傳或貼上圖片。';
@@ -641,6 +677,7 @@
                 creator: creator,
                 creatorUid: currentUserId,
                 type: type,
+                customTag: customTag,
                 lat: parsedLat,
                 lng: parsedLng,
                 locationString: parsedLocationString,
@@ -660,6 +697,7 @@
                 
                 window.clearPreview();
                 titleInput.value = '';
+                document.getElementById('customTagInput').value = '';
                 coordsInput.value = '';
                 parsedLat = null;
                 parsedLng = null;
@@ -721,6 +759,36 @@
             if (confirmActionCallback) await confirmActionCallback();
             window.closeConfirmModal();
         });
+
+        // 編輯 Modal 邏輯
+        let cardToEditId = null;
+        window.promptEditPostcard = function(id, currentType, currentTag) {
+            cardToEditId = id;
+            document.getElementById('editTypeInput').value = currentType;
+            document.getElementById('editTagInput').value = (currentTag && currentTag !== 'undefined') ? currentTag : '';
+            document.getElementById('editModal').classList.remove('hidden');
+        };
+
+        window.closeEditModal = function() {
+            cardToEditId = null;
+            document.getElementById('editModal').classList.add('hidden');
+        };
+
+        window.confirmEditPostcard = async function() {
+            if (!cardToEditId) return;
+            const newType = document.getElementById('editTypeInput').value;
+            let newTag = document.getElementById('editTagInput').value.trim();
+            if (newTag.startsWith('#')) newTag = newTag.substring(1);
+
+            try {
+                if (useFirebase && currentUserId) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', cardToEditId);
+                    await updateDoc(docRef, { type: newType, customTag: newTag });
+                    window.showToast('已更新明信片資訊！');
+                }
+            } catch(e) { console.error("更新失敗", e); }
+            window.closeEditModal();
+        };
 
         // 刪除按鈕觸發
         window.promptDeletePostcard = function(id) {
@@ -860,18 +928,30 @@
                             </button>
                         `;
                     }
-                    // 刪除按鈕
-                    adminControlsHtml += `
-                        <button onclick="window.promptDeletePostcard('${card.id}')" class="absolute top-2 right-2 bg-red-500/90 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg hover:bg-red-600">
+                }
+
+                // 編輯與刪除按鈕群 (允許管理員或原作者修改)
+                const showEditDeleteBtns = (currentUserId === ADMIN_UID || (currentUserId && card.creatorUid === currentUserId));
+                const actionBtnsHtml = showEditDeleteBtns ? `
+                    <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                        <button onclick="window.promptEditPostcard('${card.id}', '${card.type}', '${card.customTag || ''}')" class="bg-blue-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-600" title="修改類型與標籤">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        ${currentUserId === ADMIN_UID ? `
+                        <button onclick="window.promptDeletePostcard('${card.id}')" class="bg-red-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600" title="刪除">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
-                    `;
-                }
+                        ` : ''}
+                    </div>
+                ` : '';
+
+                const customTagHtml = card.customTag ? `<span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">#${card.customTag}</span>` : '';
 
                 return `
                 <div class="bg-[#1A2035] rounded-xl overflow-hidden border ${isPending ? 'border-yellow-500' : 'border-[#2A344A]'} flex flex-col relative group shadow-lg">
                     ${pendingOverlay}
                     ${adminControlsHtml}
+                    ${actionBtnsHtml}
                     
                     <div class="bg-[#3B6EA5] p-2.5 pb-3 relative">
                         <img src="${card.image}" alt="明信片" class="w-full h-[180px] object-cover rounded-md shadow-inner cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onclick="window.openImageModal('${card.image}')">
@@ -903,9 +983,9 @@
                             </button>
                         </div>
                         
-                        <div class="flex gap-2 mb-4 relative z-20">
+                        <div class="flex flex-wrap gap-2 mb-4 relative z-20">
                             <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">${tagInfo.text}</span>
-                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">#風景</span>
+                            ${customTagHtml}
                         </div>
                         
                         <div class="mt-auto pt-3 border-t border-[#2A344A] relative z-20">
@@ -990,9 +1070,12 @@
                             </button>
                         </div>
                         
-                        <div class="flex items-center justify-between border-t border-slate-700 pt-2 mt-1">
-                            <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800" style="color: ${tagInfo.color}">${tagInfo.text}</span>
-                            <span class="text-xs text-slate-300">❤️ ${card.likes || 0}</span>
+                        <div class="flex items-center justify-between border-t border-slate-700 pt-2 mt-1 gap-1">
+                            <div class="flex items-center flex-wrap gap-1">
+                                <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 flex-shrink-0" style="color: ${tagInfo.color}">${tagInfo.text}</span>
+                                ${card.customTag ? `<span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0">#${card.customTag}</span>` : ''}
+                            </div>
+                            <span class="text-xs text-slate-300 flex-shrink-0">❤️ ${card.likes || 0}</span>
                         </div>
                     </div>
                 `;
