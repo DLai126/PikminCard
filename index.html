@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>皮克敏明信片收藏</title>
     
+    <!-- 加入 Google Fonts 可愛圓體字型 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800&display=swap" rel="stylesheet">
+    
     <!-- 載入 Tailwind CSS (啟用 class-based 深色模式) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -69,7 +74,7 @@
         <!-- Header -->
         <header class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-blue-200 dark:border-slate-800 pb-4 gap-4 transition-colors">
             <div>
-                <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-900 dark:text-white mb-2 flex items-center gap-3 drop-shadow-sm">
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-900 dark:text-white mb-2 flex items-center gap-3 drop-shadow-sm" style="font-family: 'M PLUS Rounded 1c', sans-serif;">
                     🌱 皮克敏明信片圖鑑
                 </h1>
                 <p class="text-blue-600/80 dark:text-slate-400 text-sm font-medium">記錄您的花點與菇點明信片，支援 Ctrl+V 貼上圖片</p>
@@ -1199,7 +1204,8 @@
         };
 
         function initLeafletMap() {
-            leafletMap = L.map('map').setView([23.6978, 120.9605], 7);
+            // 加入 worldCopyJump: true 讓無限滑動時圖釘能無縫跟上
+            leafletMap = L.map('map', { worldCopyJump: true }).setView([23.6978, 120.9605], 7);
             
             // 亮色地圖底圖
             lightTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
