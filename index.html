@@ -232,6 +232,17 @@
                     <label class="block text-xs font-medium text-slate-400 mb-1">自訂標籤 (選填)</label>
                     <input type="text" id="editTagInput" placeholder="不填寫則不顯示" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">修改座標 (緯度, 經度)</label>
+                    <input type="text" id="editCoordsInput" placeholder="例如: 26.687957, 128.003198" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600 font-mono">
+                </div>
+                <div class="bg-slate-800/50 p-2.5 rounded-md border border-slate-700/50 flex items-center gap-2">
+                    <span class="text-xl">📍</span>
+                    <div class="flex-1 overflow-hidden">
+                        <span class="text-[10px] text-slate-400 block mb-0.5">重新解析地點：</span>
+                        <span id="editPreviewLocation" class="text-sm text-slate-500 font-medium truncate block">尚未輸入座標</span>
+                    </div>
+                </div>
             </div>
             <div class="flex justify-end gap-3 relative z-10">
                 <button onclick="window.closeEditModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm transition font-medium">取消</button>
@@ -715,7 +726,7 @@
         });
 
         // ==========================================
-        // Modal 與 管理員功能邏輯
+        // Modal 與 管理員/編輯 功能邏輯
         // ==========================================
 
         window.openImageModal = function(src) {
@@ -737,10 +748,8 @@
             
             const btn = document.getElementById('cmConfirmBtn');
             btn.innerText = btnText;
-            // 清除之前的顏色 class，套用新的
             btn.className = `px-4 py-2 text-white rounded-md text-sm transition font-bold shadow-lg ${colorClass}`;
             
-            // 更換背景裝飾光暈顏色
             const glow = document.getElementById('cmGlow');
             if(colorClass.includes('red')) glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-red-500/20 rounded-full blur-3xl pointer-events-none';
             else if(colorClass.includes('green')) glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl pointer-events-none';
@@ -762,10 +771,46 @@
 
         // 編輯 Modal 邏輯
         let cardToEditId = null;
-        window.promptEditPostcard = function(id, currentType, currentTag) {
+        let editParsedLat = null;
+        let editParsedLng = null;
+        let editParsedLocationString = "未知地點";
+
+        const editCoordsInput = document.getElementById('editCoordsInput');
+        const editPreviewLocation = document.getElementById('editPreviewLocation');
+
+        // 即時解析編輯區的座標
+        editCoordsInput.addEventListener('input', async (e) => {
+            const val = e.target.value.trim();
+            const match = val.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
+            if (match && match.length === 3) {
+                editParsedLat = parseFloat(match[1]);
+                editParsedLng = parseFloat(match[2]);
+                editPreviewLocation.textContent = "地點解析中...";
+                editPreviewLocation.className = "text-sm text-blue-400 font-medium truncate block animate-pulse";
+                editParsedLocationString = await fetchLocationName(editParsedLat, editParsedLng);
+                editPreviewLocation.textContent = editParsedLocationString;
+                editPreviewLocation.className = "text-sm text-green-400 font-medium truncate block";
+            } else {
+                editParsedLat = null;
+                editParsedLng = null;
+                editParsedLocationString = "未知地點";
+                editPreviewLocation.textContent = val.length > 0 ? "座標格式錯誤..." : "尚未輸入座標";
+                editPreviewLocation.className = "text-sm text-slate-500 font-medium truncate block";
+            }
+        });
+
+        window.promptEditPostcard = function(id, currentType, currentTag, currentLat, currentLng, currentLocationStr) {
             cardToEditId = id;
             document.getElementById('editTypeInput').value = currentType;
             document.getElementById('editTagInput').value = (currentTag && currentTag !== 'undefined') ? currentTag : '';
+            
+            editParsedLat = currentLat;
+            editParsedLng = currentLng;
+            editParsedLocationString = currentLocationStr || "未知地點";
+            editCoordsInput.value = `${currentLat}, ${currentLng}`;
+            editPreviewLocation.textContent = editParsedLocationString;
+            editPreviewLocation.className = "text-sm text-green-400 font-medium truncate block";
+
             document.getElementById('editModal').classList.remove('hidden');
         };
 
@@ -780,10 +825,21 @@
             let newTag = document.getElementById('editTagInput').value.trim();
             if (newTag.startsWith('#')) newTag = newTag.substring(1);
 
+            if (editParsedLat === null || editParsedLng === null) {
+                window.showToast('⚠️ 座標格式錯誤，請確認輸入正確的經緯度。');
+                return;
+            }
+
             try {
                 if (useFirebase && currentUserId) {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', cardToEditId);
-                    await updateDoc(docRef, { type: newType, customTag: newTag });
+                    await updateDoc(docRef, { 
+                        type: newType, 
+                        customTag: newTag,
+                        lat: editParsedLat,
+                        lng: editParsedLng,
+                        locationString: editParsedLocationString
+                    });
                     window.showToast('已更新明信片資訊！');
                 }
             } catch(e) { console.error("更新失敗", e); }
@@ -930,11 +986,12 @@
                     }
                 }
 
-                // 編輯與刪除按鈕群 (允許管理員或原作者修改)
+                // 編輯與刪除按鈕群
                 const showEditDeleteBtns = (currentUserId === ADMIN_UID || (currentUserId && card.creatorUid === currentUserId));
+                const safeLocationStr = (card.locationString || '').replace(/'/g, "\\'");
                 const actionBtnsHtml = showEditDeleteBtns ? `
                     <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                        <button onclick="window.promptEditPostcard('${card.id}', '${card.type}', '${card.customTag || ''}')" class="bg-blue-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-600" title="修改類型與標籤">
+                        <button onclick="window.promptEditPostcard('${card.id}', '${card.type}', '${card.customTag || ''}', ${card.lat}, ${card.lng}, '${safeLocationStr}')" class="bg-blue-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-600" title="修改明信片資訊">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         </button>
                         ${currentUserId === ADMIN_UID ? `
@@ -945,7 +1002,7 @@
                     </div>
                 ` : '';
 
-                const customTagHtml = card.customTag ? `<span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">#${card.customTag}</span>` : '';
+                const customTagHtml = card.customTag ? `<span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0">#${card.customTag}</span>` : '';
 
                 return `
                 <div class="bg-[#1A2035] rounded-xl overflow-hidden border ${isPending ? 'border-yellow-500' : 'border-[#2A344A]'} flex flex-col relative group shadow-lg">
@@ -984,7 +1041,7 @@
                         </div>
                         
                         <div class="flex flex-wrap gap-2 mb-4 relative z-20">
-                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700">${tagInfo.text}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0" style="color: ${tagInfo.color}">${tagInfo.text}</span>
                             ${customTagHtml}
                         </div>
                         
@@ -1035,14 +1092,13 @@
                 // 外框樣式 (審核中用黃色，其餘依照卡片類型)
                 const borderColor = isPending ? '#eab308' : tagInfo.color;
 
-                // 👉 修改：製作地圖上的小圖標 HTML (將 w-10 h-10 放大為 w-14 h-14)
+                // 👉 製作地圖上的小圖標 HTML (尺寸 56x56)
                 const iconHtml = `
                     <div class="w-14 h-14 rounded-full border-[3px] overflow-hidden shadow-lg" style="border-color: ${borderColor}">
                         <img src="${card.image}" class="w-full h-full object-cover">
                     </div>
                 `;
                 
-                // 👉 修改：更新 Leaflet Icon 的尺寸參數對應 56px
                 const customIcon = L.divIcon({
                     html: iconHtml,
                     className: 'custom-leaflet-icon',
@@ -1051,7 +1107,7 @@
                     popupAnchor: [0, -28]
                 });
 
-                // 👉 修改：彈出資訊窗 HTML (加入座標與複製按鈕)
+                // 👉 彈出資訊窗 HTML (包含座標與複製按鈕)
                 const popupHtml = `
                     <div class="w-48 font-sans">
                         <div class="relative">
