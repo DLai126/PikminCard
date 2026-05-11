@@ -59,7 +59,6 @@
         .custom-leaflet-icon img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
-<!-- 預設背景：淡黃色。暗色背景：深藍色。加入 transition 讓切換時有漸變效果 -->
 <body class="bg-yellow-50 dark:bg-[#0B1120] min-h-screen font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300">
 
     <!-- ⚠️ LINE/FB 內建瀏覽器警告橫幅 -->
@@ -81,7 +80,6 @@
             </div>
             <div class="flex flex-col sm:flex-row items-end gap-3">
                 <div id="authArea" class="flex items-center gap-2">
-                    <!-- 深淺色切換按鈕 -->
                     <button onclick="window.toggleTheme()" class="text-xs bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 text-blue-800 dark:text-white px-3 py-1.5 rounded border border-blue-200 dark:border-slate-600 transition-all duration-200 shadow-sm active:scale-95 flex items-center gap-1 font-bold">
                         <span id="themeIcon">🌙 暗色</span>
                     </button>
@@ -169,7 +167,7 @@
                     <div class="bg-blue-50 dark:bg-slate-800/50 p-2.5 rounded-md border border-blue-100 dark:border-slate-700/50 flex items-center gap-2">
                         <span class="text-xl drop-shadow-sm">📍</span>
                         <div class="flex-1 overflow-hidden">
-                            <span class="text-[10px] text-blue-500 dark:text-slate-400 font-bold block mb-0.5">自動解析地點：</span>
+                            <span class="text-[10px] text-blue-500 dark:text-slate-400 font-bold block mb-0.5">地點名稱：</span>
                             <span id="previewLocation" class="text-sm text-blue-900 dark:text-slate-300 font-bold truncate block">尚未輸入座標</span>
                         </div>
                     </div>
@@ -198,6 +196,11 @@
                         <button onclick="window.setFilter('mushroom')" data-type="mushroom" class="filter-btn inactive-filter">🍄 菇點</button>
                         <button onclick="window.setFilter('flower')" data-type="flower" class="filter-btn inactive-filter">🌸 花點</button>
                         <button onclick="window.setFilter('hidden_flower')" data-type="hidden_flower" class="filter-btn inactive-filter">🤫 隱藏花點</button>
+                        
+                        <!-- 🌍 國家過濾器下拉選單 -->
+                        <select id="countryFilter" onchange="window.setCountryFilter(this.value)" class="ml-1 px-3 py-1.5 text-[13px] rounded-lg bg-white dark:bg-slate-800 text-blue-600 dark:text-slate-300 border border-blue-200 dark:border-slate-700 font-bold shadow-sm outline-none cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors">
+                            <option value="all">🌍 所有國家</option>
+                        </select>
                     </div>
                     
                     <div class="flex bg-white dark:bg-slate-800 rounded-lg p-1 border border-blue-200 dark:border-slate-700 shadow-sm shrink-0">
@@ -258,11 +261,15 @@
 
     <!-- ✏️ 編輯明信片 Modal -->
     <div id="editModal" class="hidden fixed inset-0 z-[1160] bg-slate-900/60 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-white dark:bg-[#1E293B] border border-blue-100 dark:border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full relative overflow-hidden">
+        <div class="bg-white dark:bg-[#1E293B] border border-blue-100 dark:border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full relative overflow-hidden max-h-[95vh] overflow-y-auto">
             <h3 class="text-xl font-extrabold text-blue-900 dark:text-white mb-4 flex items-center gap-2 relative z-10">
                 <span class="bg-blue-100 dark:bg-transparent p-1 rounded">✏️</span> 修改資訊
             </h3>
-            <div class="space-y-4 mb-6 relative z-10">
+            <div class="space-y-3 mb-6 relative z-10">
+                <div>
+                    <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">明信片名稱</label>
+                    <input type="text" id="editTitleInput" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800 dark:text-white font-medium transition-all">
+                </div>
                 <div>
                     <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">類型</label>
                     <select id="editTypeInput" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800 dark:text-white font-medium shadow-sm transition-all">
@@ -331,6 +338,7 @@
         let unsubscribeSnapshot = null;
         
         let currentFilter = 'all'; 
+        let currentCountryFilter = 'all'; // 國家過濾器狀態
         let currentDisplayMode = 'gallery'; 
         let currentPage = 1;
         const ITEMS_PER_PAGE = 12; // 預設每頁顯示 12 張明信片
@@ -339,6 +347,63 @@
         let mapMarkersLayer = null;
         let lightTileLayer = null;
         let darkTileLayer = null;
+
+        // 👉 新增：國家名稱繁體中文正規化字典 (擴充包含常見簡體字對應)
+        const countryMap = {
+            "Taiwan": "台灣", "臺灣": "台灣", "Republic of China": "台灣", "Taiwan (ROC)": "台灣", "中華民國": "台灣",
+            "Japan": "日本", "Nippon": "日本",
+            "South Korea": "韓國", "Korea": "韓國", "大韓民國": "韓國", "Republic of Korea": "韓國", "韩国": "韓國",
+            "United States": "美國", "United States of America": "美國", "USA": "美國", "美国": "美國",
+            "China": "中國", "PRC": "中國", "中華人民共和國": "中國", "People's Republic of China": "中國", "中国": "中國", "中华人民共和国": "中國",
+            "Hong Kong": "香港", "Hong Kong SAR": "香港",
+            "Macau": "澳門", "Macao": "澳門", "澳门": "澳門",
+            "Singapore": "新加坡",
+            "Malaysia": "馬來西亞", "马来西亚": "馬來西亞",
+            "Thailand": "泰國", "泰国": "泰國",
+            "Vietnam": "越南",
+            "Philippines": "菲律賓", "菲律宾": "菲律賓",
+            "Indonesia": "印尼", "印度尼西亚": "印尼",
+            "Australia": "澳洲", "澳大利亚": "澳洲",
+            "New Zealand": "紐西蘭", "新西兰": "紐西蘭",
+            "United Kingdom": "英國", "UK": "英國", "Great Britain": "英國", "英国": "英國",
+            "France": "法國", "法国": "法國",
+            "Germany": "德國", "Deutschland": "德國", "德国": "德國",
+            "Italy": "義大利", "Italia": "義大利", "意大利": "義大利",
+            "Spain": "西班牙", "España": "西班牙",
+            "Canada": "加拿大",
+            "Brazil": "巴西",
+            "Netherlands": "荷蘭", "荷兰": "荷蘭",
+            "Switzerland": "瑞士",
+            "Sweden": "瑞典",
+            "India": "印度",
+            "Russia": "俄羅斯", "俄罗斯": "俄羅斯"
+        };
+
+        // 自動對照轉換函式
+        function normalizeCountryName(countryStr) {
+            if (!countryStr || countryStr === '未知國家') return '未知國家';
+            if (countryMap[countryStr]) return countryMap[countryStr];
+            
+            const lowerStr = countryStr.toLowerCase();
+            for (const [key, value] of Object.entries(countryMap)) {
+                if (lowerStr.includes(key.toLowerCase())) return value;
+            }
+            return countryStr;
+        }
+
+        // 👉 新增：舊資料打撈機制！自動從地點字串中提取國家
+        function getCardCountry(card) {
+            // 1. 如果有新版的 country 欄位，直接正規化
+            if (card.country && card.country !== '未知國家') {
+                return normalizeCountryName(card.country);
+            }
+            // 2. 如果是舊版資料，只有 locationString (例如 "日本・京都")，就拆解第一段
+            if (card.locationString && card.locationString !== '未知地點') {
+                const firstPart = card.locationString.split('・')[0];
+                return normalizeCountryName(firstPart);
+            }
+            return '未知國家';
+        }
 
         const loginBtn = document.getElementById('loginBtn');
         const userInfo = document.getElementById('userInfo');
@@ -438,6 +503,29 @@
                 useFirebase = false;
             }
         }
+        
+        // 👉 動態更新國家下拉選單
+        function updateCountryDropdown() {
+            const countrySelect = document.getElementById('countryFilter');
+            const currentSelection = countrySelect.value;
+            
+            // 👉 修改：改用 getCardCountry 來提取，讓舊資料也能被抓出來！
+            const uniqueCountries = [...new Set(postcards.map(p => getCardCountry(p)))].filter(c => c && c !== '未知國家').sort();
+            
+            let html = `<option value="all">🌍 所有國家</option>`;
+            uniqueCountries.forEach(country => {
+                html += `<option value="${country}">${country}</option>`;
+            });
+            countrySelect.innerHTML = html;
+            
+            // 保留原本的選擇，如果原本選擇的國家已經不存在，就重設回 all
+            if (uniqueCountries.includes(currentSelection) || currentSelection === 'all') {
+                countrySelect.value = currentSelection;
+            } else {
+                countrySelect.value = 'all';
+                currentCountryFilter = 'all';
+            }
+        }
 
         function loadPostcardsFromCloud() {
             const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
@@ -448,6 +536,9 @@
                     postcards.push({ id: docSnap.id, ...docSnap.data() });
                 });
                 postcards.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                // 資料更新後，重新產生國家選項
+                updateCountryDropdown();
                 updateDisplay();
             }, (error) => {
                 console.error("讀取資料失敗", error);
@@ -477,7 +568,6 @@
         const activeFilterClass = "filter-btn px-4 py-1.5 text-[13px] rounded-full bg-blue-500 dark:bg-[#3B6EA5] text-white border border-blue-500 dark:border-[#3B6EA5] transition-all duration-200 font-bold shadow-md transform hover:-translate-y-0.5 active:scale-95";
         const inactiveFilterClass = "filter-btn px-4 py-1.5 text-[13px] rounded-full bg-white dark:bg-slate-800 text-blue-600 dark:text-slate-300 border border-blue-200 dark:border-slate-700 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-700 font-bold shadow-sm hover:shadow active:scale-95";
 
-        // 更新過濾器按鈕的 UI 樣式 (避免在渲染時重複觸發 updateDisplay 導致無限迴圈)
         function updateFilterButtonUI(type) {
             const buttons = document.querySelectorAll('.filter-btn');
             buttons.forEach(btn => {
@@ -518,6 +608,13 @@
             updateFilterButtonUI(type);
             updateDisplay();
         };
+        
+        // 👉 新增的國家過濾觸發器
+        window.setCountryFilter = function(country) {
+            currentCountryFilter = country;
+            currentPage = 1;
+            updateDisplay();
+        };
 
         function compressImage(file, callback) {
             const reader = new FileReader();
@@ -554,7 +651,6 @@
             placeholderText.classList.add('hidden');
             document.getElementById('errorMsg').classList.add('hidden');
             
-            // 加入上傳成功後的 Q彈動畫提示
             previewImage.classList.add('scale-105');
             setTimeout(() => { previewImage.classList.remove('scale-105'); previewImage.classList.add('transition-transform', 'duration-300', 'scale-100'); }, 50);
         }
@@ -654,25 +750,29 @@
         let parsedLat = null;
         let parsedLng = null;
         let parsedLocationString = "未知地點";
+        let parsedCountry = "未知國家";
 
+        // 👉 改良版地理編碼解析，會提取國家資訊
         async function fetchLocationName(lat, lng) {
             try {
-                const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
-                const response = await fetch(url, { headers: { 'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8' } });
+                // 加入 accept-language=zh-TW 強制 API 盡量回傳繁體中文
+                const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=zh-TW`;
+                const response = await fetch(url);
                 if (!response.ok) throw new Error('API 請求失敗');
                 const data = await response.json();
                 if (data && data.address) {
                     const addr = data.address;
-                    const country = addr.country || '';
+                    // 套用繁體中文正規化
+                    const country = normalizeCountryName(addr.country || '未知國家');
                     const level1 = addr.state || addr.province || addr.county || '';
                     const level2 = addr.city || addr.town || addr.city_district || addr.district || '';
                     const level3 = addr.village || addr.suburb || addr.neighbourhood || addr.road || '';
                     let parts = [country, level1, level2, level3].filter(Boolean);
                     parts = [...new Set(parts)];
-                    return parts.join('・') || "未知地點";
+                    return { full: parts.join('・') || "未知地點", country: country };
                 }
-                return "未知地點";
-            } catch (error) { return "解析失敗"; }
+                return { full: "未知地點", country: "未知國家" };
+            } catch (error) { return { full: "解析失敗", country: "未知國家" }; }
         }
 
         window.showToast = function(message) {
@@ -690,13 +790,18 @@
                 parsedLng = parseFloat(match[2]);
                 previewLocation.textContent = "地點解析中...";
                 previewLocation.className = "text-sm text-blue-500 font-bold truncate block animate-pulse";
-                parsedLocationString = await fetchLocationName(parsedLat, parsedLng);
+                
+                const locData = await fetchLocationName(parsedLat, parsedLng);
+                parsedLocationString = locData.full;
+                parsedCountry = locData.country;
+                
                 previewLocation.textContent = parsedLocationString;
                 previewLocation.className = "text-sm text-green-600 dark:text-green-400 font-bold truncate block";
             } else {
                 parsedLat = null;
                 parsedLng = null;
                 parsedLocationString = "未知地點";
+                parsedCountry = "未知國家";
                 previewLocation.textContent = val.length > 0 ? "座標格式錯誤..." : "尚未輸入座標";
                 previewLocation.className = "text-sm text-blue-900 dark:text-slate-300 font-bold truncate block";
             }
@@ -721,6 +826,7 @@
             const title = titleInput.value.trim() || '未命名明信片';
             const creator = creatorInput.value.trim() || '匿名玩家';
             const type = typeInput.value;
+            const finalCountry = parsedCountry || '未知國家';
             
             let customTag = document.getElementById('customTagInput').value.trim();
             if (customTag.startsWith('#')) customTag = customTag.substring(1);
@@ -753,6 +859,7 @@
                 creatorUid: currentUserId,
                 type: type,
                 customTag: customTag,
+                country: finalCountry, // 儲存國家資訊
                 lat: parsedLat,
                 lng: parsedLng,
                 locationString: parsedLocationString,
@@ -778,6 +885,7 @@
                 parsedLat = null;
                 parsedLng = null;
                 parsedLocationString = "未知地點";
+                parsedCountry = "未知國家";
                 previewLocation.textContent = "尚未輸入座標";
                 previewLocation.className = "text-sm text-blue-900 dark:text-slate-300 font-bold truncate block";
             } catch (e) {
@@ -838,11 +946,12 @@
             window.closeConfirmModal();
         });
 
-        // 編輯 Modal 邏輯
+        // 👉 編輯 Modal 邏輯
         let cardToEditId = null;
         let editParsedLat = null;
         let editParsedLng = null;
         let editParsedLocationString = "未知地點";
+        let editParsedCountry = "未知國家";
 
         const editCoordsInput = document.getElementById('editCoordsInput');
         const editPreviewLocation = document.getElementById('editPreviewLocation');
@@ -855,7 +964,11 @@
                 editParsedLng = parseFloat(match[2]);
                 editPreviewLocation.textContent = "地點解析中...";
                 editPreviewLocation.className = "text-sm text-blue-400 font-medium truncate block animate-pulse";
-                editParsedLocationString = await fetchLocationName(editParsedLat, editParsedLng);
+                
+                const locData = await fetchLocationName(editParsedLat, editParsedLng);
+                editParsedLocationString = locData.full;
+                editParsedCountry = normalizeCountryName(locData.country);
+                
                 editPreviewLocation.textContent = editParsedLocationString;
                 editPreviewLocation.className = "text-sm text-green-600 dark:text-green-400 font-bold truncate block";
             } else {
@@ -867,10 +980,12 @@
             }
         });
 
-        window.promptEditPostcard = function(id, currentType, currentTag, currentLat, currentLng, currentLocationStr) {
+        window.promptEditPostcard = function(id, currentTitle, currentType, currentTag, currentCountry, currentLat, currentLng, currentLocationStr) {
             cardToEditId = id;
+            document.getElementById('editTitleInput').value = currentTitle || '';
             document.getElementById('editTypeInput').value = currentType;
             document.getElementById('editTagInput').value = (currentTag && currentTag !== 'undefined') ? currentTag : '';
+            editParsedCountry = currentCountry || '未知國家';
             
             editParsedLat = currentLat;
             editParsedLng = currentLng;
@@ -889,7 +1004,10 @@
 
         window.confirmEditPostcard = async function() {
             if (!cardToEditId) return;
+            const newTitle = document.getElementById('editTitleInput').value.trim();
             const newType = document.getElementById('editTypeInput').value;
+            const newCountry = editParsedCountry || '未知國家';
+            
             let newTag = document.getElementById('editTagInput').value.trim();
             if (newTag.startsWith('#')) newTag = newTag.substring(1);
 
@@ -902,8 +1020,10 @@
                 if (useFirebase && currentUserId) {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', cardToEditId);
                     await updateDoc(docRef, { 
+                        title: newTitle || '未命名明信片',
                         type: newType, 
                         customTag: newTag,
+                        country: newCountry,
                         lat: editParsedLat,
                         lng: editParsedLng,
                         locationString: editParsedLocationString
@@ -980,13 +1100,11 @@
                     const hasLiked = likedBy.includes(currentUserId);
                     
                     if (hasLiked) {
-                        // 已經按過讚，執行收回讚
                         await updateDoc(docRef, { 
                             likedBy: arrayRemove(currentUserId),
                             likes: Math.max(0, (card.likes || 1) - 1)
                         });
                     } else {
-                        // 尚未按讚，加入讚
                         await updateDoc(docRef, { 
                             likedBy: arrayUnion(currentUserId),
                             likes: (card.likes || 0) + 1
@@ -1004,6 +1122,7 @@
         }
 
         function updateDisplay() {
+            // 👉 過濾邏輯加入國家判斷
             const displayCards = postcards.filter(card => {
                 let isAuthVisible = false;
                 if (currentUserId === ADMIN_UID) isAuthVisible = true;
@@ -1012,6 +1131,11 @@
                 
                 if (!isAuthVisible) return false;
                 if (currentFilter !== 'all' && card.type !== currentFilter) return false;
+                
+                // 國家過濾器判斷 (套用舊資料打撈與正規化)
+                const cardCountry = getCardCountry(card);
+                if (currentCountryFilter !== 'all' && cardCountry !== currentCountryFilter) return false;
+                
                 return true;
             });
 
@@ -1037,7 +1161,6 @@
 
             emptyState.classList.add('hidden');
 
-            // 分頁邏輯計算
             const totalPages = Math.ceil(displayCards.length / ITEMS_PER_PAGE);
             if (currentPage > totalPages) currentPage = totalPages;
             if (currentPage < 1) currentPage = 1;
@@ -1079,10 +1202,16 @@
                 }
 
                 const showEditDeleteBtns = (currentUserId === ADMIN_UID || (currentUserId && card.creatorUid === currentUserId));
+                
+                // 👉 替換字串安全處理，避免標題內有單引號導致 HTML 崩潰
+                const safeTitle = (card.title || '').replace(/'/g, "\\'");
+                const normalizedCountry = getCardCountry(card); // 👉 修改：改用 getCardCountry
+                const safeCountry = normalizedCountry.replace(/'/g, "\\'");
                 const safeLocationStr = (card.locationString || '').replace(/'/g, "\\'");
+                
                 const actionBtnsHtml = showEditDeleteBtns ? `
                     <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
-                        <button onclick="window.promptEditPostcard('${card.id}', '${card.type}', '${card.customTag || ''}', ${card.lat}, ${card.lng}, '${safeLocationStr}')" class="bg-blue-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-600 hover:scale-110 active:scale-90 transition-all" title="修改明信片資訊">
+                        <button onclick="window.promptEditPostcard('${card.id}', '${safeTitle}', '${card.type}', '${card.customTag || ''}', '${safeCountry}', ${card.lat}, ${card.lng}, '${safeLocationStr}')" class="bg-blue-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-600 hover:scale-110 active:scale-90 transition-all" title="修改明信片資訊">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         </button>
                         ${currentUserId === ADMIN_UID ? `
@@ -1094,6 +1223,7 @@
                 ` : '';
 
                 const customTagHtml = card.customTag ? `<span class="px-2 py-0.5 rounded-full text-[11px] bg-blue-100 dark:bg-slate-800 text-blue-700 dark:text-slate-300 border border-blue-200 dark:border-slate-700 flex-shrink-0 font-bold">#${card.customTag}</span>` : '';
+                const countryTagHtml = normalizedCountry !== '未知國家' ? `<span class="px-2 py-0.5 rounded-full text-[11px] bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 flex-shrink-0 font-bold">🌍 ${normalizedCountry}</span>` : '';
 
                 return `
                 <div class="bg-white dark:bg-[#1A2035] rounded-xl overflow-hidden border ${isPending ? 'border-yellow-400 dark:border-yellow-500' : 'border-blue-100 dark:border-[#2A344A]'} flex flex-col relative group shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
@@ -1103,7 +1233,7 @@
                     
                     <div class="bg-blue-50 dark:bg-[#3B6EA5] p-2.5 pb-3 relative transition-colors">
                         <img src="${card.image}" alt="明信片" class="w-full h-[180px] object-cover rounded-lg shadow-sm cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onclick="window.openImageModal('${card.image}')">
-                        <h3 class="text-blue-900 dark:text-white font-extrabold text-[15px] mt-2.5 px-1 truncate drop-shadow-sm">${card.title}</h3>
+                        <h3 class="text-blue-900 dark:text-white font-extrabold text-[15px] mt-2.5 px-1 truncate drop-shadow-sm" style="font-family: 'M PLUS Rounded 1c', sans-serif;">${card.title}</h3>
                     </div>
                     
                     <div class="p-4 flex flex-col flex-grow bg-white dark:bg-[#1A2035] transition-colors">
@@ -1133,6 +1263,7 @@
                         
                         <div class="flex flex-wrap gap-2 mb-4 relative z-20">
                             <span class="px-2 py-0.5 rounded-full text-[11px] bg-blue-100 dark:bg-slate-800 font-bold border border-blue-200 dark:border-slate-700 flex-shrink-0 shadow-sm" style="color: ${tagInfo.color}">${tagInfo.text}</span>
+                            ${countryTagHtml}
                             ${customTagHtml}
                         </div>
                         
@@ -1147,7 +1278,6 @@
             `;
             }).join('');
 
-            // 渲染分頁按鈕
             renderPaginationControls(totalPages);
         }
 
@@ -1204,19 +1334,15 @@
         };
 
         function initLeafletMap() {
-            // 加入 worldCopyJump: true 讓無限滑動時圖釘能無縫跟上
             leafletMap = L.map('map', { worldCopyJump: true }).setView([23.6978, 120.9605], 7);
             
-            // 亮色地圖底圖
             lightTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19
             });
-            // 暗色地圖底圖
             darkTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19
             });
 
-            // 依據目前主題套用底圖
             if (document.documentElement.classList.contains('dark')) {
                 darkTileLayer.addTo(leafletMap);
             } else {
@@ -1237,6 +1363,9 @@
                 const tagInfo = getTagInfo(card.type);
                 const isPending = card.status === 'pending';
                 const borderColor = isPending ? '#eab308' : tagInfo.color;
+                
+                // 👉 修改：改用 getCardCountry 確保地圖模式的舊資料也會顯示國家
+                const normalizedCountry = getCardCountry(card);
 
                 const iconHtml = `
                     <div class="w-14 h-14 rounded-full border-[3px] overflow-hidden shadow-lg transition-transform hover:scale-110 active:scale-95 cursor-pointer" style="border-color: ${borderColor}">
@@ -1258,7 +1387,7 @@
                             <img src="${card.image}" class="w-full h-24 object-cover rounded-lg border border-blue-200 dark:border-slate-600 mb-2 cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm" onclick="window.openImageModal('${card.image}')">
                             ${isPending ? '<span class="absolute top-1 right-1 bg-yellow-400 dark:bg-yellow-500 text-blue-900 dark:text-slate-900 text-[10px] font-extrabold px-1.5 py-0.5 rounded shadow">審核中</span>' : ''}
                         </div>
-                        <h4 class="font-extrabold text-sm text-blue-900 dark:text-white mb-1 truncate">${card.title}</h4>
+                        <h4 class="font-extrabold text-sm text-blue-900 dark:text-white mb-1 truncate" style="font-family: 'M PLUS Rounded 1c', sans-serif;">${card.title}</h4>
                         <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2 truncate font-medium">By ${card.creator}</p>
                         
                         <div class="bg-blue-50 dark:bg-[#121726] border border-blue-100 dark:border-[#2A344A] rounded-lg p-2 flex justify-between items-center mb-2 group/copy cursor-pointer hover:bg-blue-100 dark:hover:bg-slate-800 transition-colors" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
@@ -1273,6 +1402,7 @@
                         <div class="flex items-center justify-between border-t border-blue-100 dark:border-slate-700 pt-2 mt-1 gap-1">
                             <div class="flex items-center flex-wrap gap-1">
                                 <span class="text-[11px] px-1.5 py-0.5 rounded font-bold shadow-sm bg-blue-50 dark:bg-slate-800 flex-shrink-0" style="color: ${tagInfo.color}">${tagInfo.text}</span>
+                                ${normalizedCountry !== '未知國家' ? `<span class="text-[11px] px-1.5 py-0.5 rounded font-bold shadow-sm bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex-shrink-0">🌍 ${normalizedCountry}</span>` : ''}
                                 ${card.customTag ? `<span class="text-[11px] px-1.5 py-0.5 rounded font-bold shadow-sm bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-slate-300 flex-shrink-0">#${card.customTag}</span>` : ''}
                             </div>
                             <button onclick="window.toggleLike('${card.id}')" class="text-xs ${card.likedBy && card.likedBy.includes(currentUserId) ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'} hover:text-red-500 font-bold flex-shrink-0 transition-colors flex items-center gap-1 active:scale-90">
