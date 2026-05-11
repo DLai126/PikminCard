@@ -8,7 +8,7 @@
     <!-- 加入 Google Fonts 可愛圓體字型 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;800&display=swap" rel="stylesheet">
     
     <!-- 載入 Tailwind CSS (啟用 class-based 深色模式) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1233,7 +1233,7 @@
                     
                     <div class="bg-blue-50 dark:bg-[#3B6EA5] p-2.5 pb-3 relative transition-colors">
                         <img src="${card.image}" alt="明信片" class="w-full h-[180px] object-cover rounded-lg shadow-sm cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onclick="window.openImageModal('${card.image}')">
-                        <h3 class="text-blue-900 dark:text-white font-extrabold text-[15px] mt-2.5 px-1 truncate drop-shadow-sm" style="font-family: 'M PLUS Rounded 1c', sans-serif;">${card.title}</h3>
+                        <h3 class="text-blue-900 dark:text-white font-normal text-[15px] mt-2.5 px-1 truncate drop-shadow-sm" style="font-family: 'M PLUS Rounded 1c', sans-serif;">${card.title}</h3>
                     </div>
                     
                     <div class="p-4 flex flex-col flex-grow bg-white dark:bg-[#1A2035] transition-colors">
@@ -1387,7 +1387,7 @@
                             <img src="${card.image}" class="w-full h-24 object-cover rounded-lg border border-blue-200 dark:border-slate-600 mb-2 cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm" onclick="window.openImageModal('${card.image}')">
                             ${isPending ? '<span class="absolute top-1 right-1 bg-yellow-400 dark:bg-yellow-500 text-blue-900 dark:text-slate-900 text-[10px] font-extrabold px-1.5 py-0.5 rounded shadow">審核中</span>' : ''}
                         </div>
-                        <h4 class="font-extrabold text-sm text-blue-900 dark:text-white mb-1 truncate" style="font-family: 'M PLUS Rounded 1c', sans-serif;">${card.title}</h4>
+                        <h4 class="font-normal text-sm text-blue-900 dark:text-white mb-1 truncate" style="font-family: 'M PLUS Rounded 1c', sans-serif;">${card.title}</h4>
                         <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2 truncate font-medium">By ${card.creator}</p>
                         
                         <div class="bg-blue-50 dark:bg-[#121726] border border-blue-100 dark:border-[#2A344A] rounded-lg p-2 flex justify-between items-center mb-2 group/copy cursor-pointer hover:bg-blue-100 dark:hover:bg-slate-800 transition-colors" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
