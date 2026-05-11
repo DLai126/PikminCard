@@ -4,61 +4,95 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>皮克敏明信片收藏</title>
+    
+    <!-- 載入 Tailwind CSS (啟用 class-based 深色模式) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pikmin: {
+                            yellow: '#FEFCE8', // 輕柔的淡黃底色
+                            blue: '#60A5FA',   // 活力的淺藍色
+                            white: '#FFFFFF',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     
     <!-- 載入 Leaflet 地圖套件 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <style>
-        /* 自定義深色捲軸樣式 */
+        /* 自定義捲軸樣式 (支援亮色與暗色) */
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        ::-webkit-scrollbar-track { background: #fefce8; }
+        ::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
+        
+        .dark ::-webkit-scrollbar-track { background: #0f172a; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
         
         .image-fit { object-fit: cover; width: 100%; height: 180px; }
         
-        /* 修正 Leaflet 地圖彈出窗在深色模式的樣式 */
-        .leaflet-popup-content-wrapper { background-color: #1E293B; color: #f1f5f9; border: 1px solid #334155; }
-        .leaflet-popup-tip { background-color: #1E293B; border: 1px solid #334155; }
-        .custom-leaflet-icon { border-radius: 50%; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); border: 2px solid #fff; background: #1E293B; display: flex; align-items: center; justify-content: center;}
+        /* Leaflet 地圖彈出窗樣式 (亮色) */
+        .leaflet-popup-content-wrapper { background-color: #ffffff; color: #1e293b; border: 1px solid #bfdbfe; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .leaflet-popup-tip { background-color: #ffffff; border: 1px solid #bfdbfe; }
+        
+        /* Leaflet 地圖彈出窗樣式 (暗色) */
+        .dark .leaflet-popup-content-wrapper { background-color: #1E293B; color: #f1f5f9; border: 1px solid #334155; }
+        .dark .leaflet-popup-tip { background-color: #1E293B; border: 1px solid #334155; }
+        
+        .custom-leaflet-icon { border-radius: 50%; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); border: 3px solid #fff; background: #fff; display: flex; align-items: center; justify-content: center;}
+        .dark .custom-leaflet-icon { border-color: #1E293B; background: #1E293B; }
         .custom-leaflet-icon img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
-<body class="bg-[#0B1120] min-h-screen font-sans text-slate-200">
+<!-- 預設背景：淡黃色。暗色背景：深藍色。加入 transition 讓切換時有漸變效果 -->
+<body class="bg-yellow-50 dark:bg-[#0B1120] min-h-screen font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300">
 
     <!-- ⚠️ LINE/FB 內建瀏覽器警告橫幅 -->
-    <div id="inAppWarning" class="hidden bg-red-600 text-white p-3 sm:p-4 text-sm font-bold text-center z-[1100] shadow-md border-b border-red-800 relative">
+    <div id="inAppWarning" class="hidden bg-red-500 text-white p-3 sm:p-4 text-sm font-bold text-center z-[1100] shadow-md border-b border-red-600 relative">
         <span class="text-xl block mb-1">⚠️ 無法在此登入 Google</span>
         偵測到您正在使用 LINE 或 FB 內建瀏覽器，這會被 Google 安全機制阻擋。<br>
-        👉 請點擊畫面右上角或右下角的 <span class="bg-white/20 px-2 py-0.5 rounded text-yellow-200">選單 ⋮</span>，並選擇 <span class="text-yellow-300 text-base">「在預設瀏覽器中開啟」</span> (Safari / Chrome) 即可正常使用！
+        👉 請點擊畫面右上角或右下角的 <span class="bg-white/20 px-2 py-0.5 rounded text-yellow-100">選單 ⋮</span>，並選擇 <span class="text-yellow-200 text-base">「在預設瀏覽器中開啟」</span> (Safari / Chrome) 即可正常使用！
     </div>
 
     <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         
         <!-- Header -->
-        <header class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-800 pb-4 gap-4">
+        <header class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-blue-200 dark:border-slate-800 pb-4 gap-4 transition-colors">
             <div>
-                <h1 class="text-3xl sm:text-4xl font-bold text-white mb-2 flex items-center gap-3">
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-900 dark:text-white mb-2 flex items-center gap-3 drop-shadow-sm">
                     🌱 皮克敏明信片圖鑑
                 </h1>
-                <p class="text-slate-400 text-sm">記錄您的花點與菇點明信片，支援 Ctrl+V 貼上圖片</p>
+                <p class="text-blue-600/80 dark:text-slate-400 text-sm font-medium">記錄您的花點與菇點明信片，支援 Ctrl+V 貼上圖片</p>
             </div>
             <div class="flex flex-col sm:flex-row items-end gap-3">
                 <div id="authArea" class="flex items-center gap-2">
-                    <button id="loginBtn" onclick="window.loginWithGoogle()" class="text-xs bg-white text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded border border-slate-300 transition flex items-center gap-1 shadow-sm font-bold">
+                    <!-- 深淺色切換按鈕 -->
+                    <button onclick="window.toggleTheme()" class="text-xs bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 text-blue-800 dark:text-white px-3 py-1.5 rounded border border-blue-200 dark:border-slate-600 transition-all duration-200 shadow-sm active:scale-95 flex items-center gap-1 font-bold">
+                        <span id="themeIcon">🌙 暗色</span>
+                    </button>
+                    
+                    <button id="loginBtn" onclick="window.loginWithGoogle()" class="text-xs bg-white dark:bg-slate-700 hover:-translate-y-0.5 text-slate-800 dark:text-white hover:bg-blue-50 dark:hover:bg-slate-600 px-3 py-1.5 rounded border border-blue-200 dark:border-slate-600 transition-all duration-200 shadow-sm active:scale-95 flex items-center gap-1 font-bold">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                         Google 登入
                     </button>
-                    <div id="userInfo" class="hidden flex items-center gap-2 bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg">
-                        <img id="userAvatar" src="" class="w-5 h-5 rounded-full" alt="avatar">
-                        <span id="userName" class="text-xs text-white"></span>
-                        <button onclick="window.logout()" class="text-[10px] bg-slate-600 hover:bg-red-500 text-white px-2 py-0.5 rounded transition">登出</button>
+                    <div id="userInfo" class="hidden flex items-center gap-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-slate-700 px-2 py-1 rounded-lg shadow-sm">
+                        <img id="userAvatar" src="" class="w-5 h-5 rounded-full border border-blue-100 dark:border-transparent" alt="avatar">
+                        <span id="userName" class="text-xs text-blue-900 dark:text-white font-bold"></span>
+                        <button onclick="window.logout()" class="text-[10px] bg-red-100 hover:bg-red-500 text-red-600 hover:text-white dark:bg-slate-600 dark:text-white dark:hover:bg-red-500 px-2 py-0.5 rounded transition-all active:scale-90 font-bold">登出</button>
                     </div>
                 </div>
-                <div class="text-sm text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-                    顯示總數: <span id="countDisplay" class="text-white font-bold">0</span>
+                <div class="text-sm text-blue-800 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-slate-700 shadow-sm font-medium">
+                    顯示總數: <span id="countDisplay" class="text-blue-600 dark:text-white font-extrabold text-base">0</span>
                 </div>
             </div>
         </header>
@@ -67,26 +101,28 @@
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             
             <!-- Left Column: Input Form -->
-            <div class="lg:col-span-1 bg-[#1E293B] p-5 rounded-xl border border-slate-700 h-fit shadow-xl">
-                <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">➕ 新增明信片</h2>
+            <div class="lg:col-span-1 bg-white dark:bg-[#1E293B] p-5 rounded-xl border border-blue-100 dark:border-slate-700 h-fit shadow-lg transition-colors">
+                <h2 class="text-lg font-extrabold text-blue-900 dark:text-white mb-4 border-b border-blue-100 dark:border-slate-700 pb-2 flex items-center gap-2">
+                    <span class="bg-blue-100 dark:bg-transparent p-1 rounded">➕</span> 新增明信片
+                </h2>
                 
                 <!-- Image Input -->
                 <div class="mb-4">
-                    <label class="block text-xs font-medium text-slate-400 mb-1.5">圖片來源 (上傳或貼上)</label>
-                    <div id="dropZone" class="border-2 border-dashed border-slate-600 rounded-lg p-3 text-center hover:border-blue-500 hover:bg-slate-800 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[120px] relative overflow-hidden" onclick="document.getElementById('fileInput').click()">
+                    <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1.5">圖片來源 (上傳或貼上)</label>
+                    <div id="dropZone" class="border-2 border-dashed border-blue-300 dark:border-slate-600 rounded-lg p-3 text-center bg-blue-50/50 hover:bg-blue-100 dark:bg-transparent dark:hover:bg-slate-800 transition-all duration-200 cursor-pointer flex flex-col items-center justify-center min-h-[120px] relative overflow-hidden group" onclick="document.getElementById('fileInput').click()">
                         
-                        <div id="placeholderText" class="text-slate-400">
-                            <svg class="mx-auto h-8 w-8 mb-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div id="placeholderText" class="text-blue-500/70 dark:text-slate-400 transition-transform group-hover:scale-105">
+                            <svg class="mx-auto h-8 w-8 mb-1 text-blue-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <p class="text-xs">點擊、拖曳、或 Ctrl+V</p>
-                            <button id="clipboardBtn" class="mt-2 px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white transition z-20 relative shadow-sm border border-slate-600" onclick="event.stopPropagation(); window.pasteFromClipboard();">
+                            <p class="text-xs font-medium">點擊、拖曳、或 Ctrl+V</p>
+                            <button id="clipboardBtn" class="mt-2 px-3 py-1 bg-white dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 rounded text-xs text-blue-700 dark:text-white transition-all duration-200 z-20 relative shadow-sm border border-blue-200 dark:border-slate-600 font-bold active:scale-95" onclick="event.stopPropagation(); window.pasteFromClipboard();">
                                 📋 從剪貼簿讀取
                             </button>
                         </div>
                         
                         <img id="previewImage" src="" alt="預覽" class="hidden absolute inset-0 w-full h-full object-cover z-10" />
-                        <button id="removeImageBtn" class="hidden absolute top-1 right-1 z-20 bg-red-500/80 text-white rounded-full p-1 hover:bg-red-600 transition" onclick="event.stopPropagation(); window.clearPreview();">
+                        <button id="removeImageBtn" class="hidden absolute top-2 right-2 z-20 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-md transition-all active:scale-90" onclick="event.stopPropagation(); window.clearPreview();">
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
                     </div>
@@ -94,20 +130,20 @@
                 </div>
 
                 <!-- Info Inputs -->
-                <div class="space-y-3 mb-4">
+                <div class="space-y-3 mb-5">
                     <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">明信片名稱</label>
-                        <input type="text" id="titleInput" placeholder="例如: 無邊際泳池" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
+                        <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">明信片名稱</label>
+                        <input type="text" id="titleInput" placeholder="例如: 無邊際泳池" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 font-medium">
                     </div>
                     
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">玩家名稱</label>
-                            <input type="text" id="creatorInput" placeholder="例如: Jenma" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
+                            <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">玩家名稱</label>
+                            <input type="text" id="creatorInput" placeholder="例如: Jenma" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 font-medium">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">類型</label>
-                            <select id="typeInput" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white">
+                            <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">類型</label>
+                            <select id="typeInput" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm text-slate-800 dark:text-white font-medium cursor-pointer shadow-sm">
                                 <option value="mushroom">🍄 菇點</option>
                                 <option value="flower">🌸 花點</option>
                                 <option value="hidden_flower">🤫 隱藏花點</option>
@@ -115,35 +151,35 @@
                         </div>
                     </div>
 
-                    <div class="mb-2">
-                        <label class="block text-xs font-medium text-slate-400 mb-1">自訂標籤 (選填)</label>
-                        <input type="text" id="customTagInput" placeholder="例如：風景 (不填則不顯示)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
+                    <div>
+                        <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">自訂標籤 (選填)</label>
+                        <input type="text" id="customTagInput" placeholder="例如：搞笑 (不填則不顯示)" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 font-medium">
                     </div>
 
                     <div class="mb-2">
-                        <label class="block text-xs font-medium text-slate-400 mb-1">座標 (可直接貼上 緯度, 經度)</label>
-                        <input type="text" id="coordsInput" placeholder="例如: 26.687957, 128.003198" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600 font-mono">
+                        <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">座標 (可直接貼上 緯度, 經度)</label>
+                        <input type="text" id="coordsInput" placeholder="例如: 26.687957, 128.003198" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 font-mono font-bold">
                     </div>
                     
-                    <div class="bg-slate-800/50 p-2.5 rounded-md border border-slate-700/50 flex items-center gap-2">
-                        <span class="text-xl">📍</span>
+                    <div class="bg-blue-50 dark:bg-slate-800/50 p-2.5 rounded-md border border-blue-100 dark:border-slate-700/50 flex items-center gap-2">
+                        <span class="text-xl drop-shadow-sm">📍</span>
                         <div class="flex-1 overflow-hidden">
-                            <span class="text-[10px] text-slate-400 block mb-0.5">自動解析地點：</span>
-                            <span id="previewLocation" class="text-sm text-slate-500 font-medium truncate block">尚未輸入座標</span>
+                            <span class="text-[10px] text-blue-500 dark:text-slate-400 font-bold block mb-0.5">自動解析地點：</span>
+                            <span id="previewLocation" class="text-sm text-blue-900 dark:text-slate-300 font-bold truncate block">尚未輸入座標</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Submit Button -->
-                <button id="addBtn" class="w-full bg-[#3B6EA5] text-white font-medium py-2 rounded-md hover:bg-blue-600 transition shadow flex justify-center items-center text-sm">
+                <button id="addBtn" class="w-full bg-blue-500 hover:bg-blue-400 text-white font-extrabold py-3 rounded-lg shadow-blue-500/30 shadow-lg hover:shadow-blue-500/50 transform hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 flex justify-center items-center text-sm">
                     <span id="btnText">上傳明信片</span>
                     <svg id="loadingSpinner" class="hidden animate-spin ml-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                 </button>
-                <p id="errorMsg" class="text-red-400 text-xs mt-2 hidden"></p>
-                <p id="adminNotice" class="text-yellow-400 text-xs mt-2 hidden">⚠️ 非管理員上傳，需等候管理員審核後才會公開顯示。</p>
+                <p id="errorMsg" class="text-red-500 dark:text-red-400 text-xs font-bold mt-3 hidden text-center bg-red-50 dark:bg-transparent p-2 rounded"></p>
+                <p id="adminNotice" class="text-yellow-600 dark:text-yellow-400 font-bold text-xs mt-3 hidden text-center bg-yellow-50 dark:bg-transparent p-2 rounded">⚠️ 非管理員上傳，需等候核准後公開。</p>
             </div>
 
             <!-- Right Column: Gallery / Map -->
@@ -152,33 +188,35 @@
                 <!-- 控制列 (Filter & View Toggle Bar) -->
                 <div class="mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div class="flex flex-wrap gap-2 items-center" id="filterBar">
-                        <button onclick="window.setFilter('all')" data-type="all" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-[#3B6EA5] text-white border border-[#3B6EA5] transition font-medium shadow-sm">全部顯示</button>
-                        <button onclick="window.setFilter('mushroom')" data-type="mushroom" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🍄 菇點</button>
-                        <button onclick="window.setFilter('flower')" data-type="flower" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🌸 花點</button>
-                        <button onclick="window.setFilter('hidden_flower')" data-type="hidden_flower" class="filter-btn px-4 py-1.5 text-[13px] rounded-full bg-slate-800 text-slate-300 border border-slate-700 transition hover:bg-slate-700 font-medium">🤫 隱藏花點</button>
+                        <!-- JS 會處理 active/inactive 的樣式切換 -->
+                        <button onclick="window.setFilter('all')" data-type="all" class="filter-btn active-filter">全部顯示</button>
+                        <button onclick="window.setFilter('mushroom')" data-type="mushroom" class="filter-btn inactive-filter">🍄 菇點</button>
+                        <button onclick="window.setFilter('flower')" data-type="flower" class="filter-btn inactive-filter">🌸 花點</button>
+                        <button onclick="window.setFilter('hidden_flower')" data-type="hidden_flower" class="filter-btn inactive-filter">🤫 隱藏花點</button>
                     </div>
                     
-                    <div class="flex bg-slate-800 rounded-lg p-1 border border-slate-700 shadow-sm shrink-0">
-                        <button onclick="window.setView('gallery')" id="btnViewGallery" class="px-3 py-1 text-xs font-bold rounded-md transition-colors bg-slate-600 text-white shadow">🖼️ 畫廊</button>
-                        <button onclick="window.setView('map')" id="btnViewMap" class="px-3 py-1 text-xs font-bold rounded-md transition-colors text-slate-400 hover:text-white">🗺️ 地圖</button>
+                    <div class="flex bg-white dark:bg-slate-800 rounded-lg p-1 border border-blue-200 dark:border-slate-700 shadow-sm shrink-0">
+                        <button onclick="window.setView('gallery')" id="btnViewGallery" class="px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 bg-blue-500 text-white shadow-md transform hover:-translate-y-0.5 active:scale-95">🖼️ 畫廊</button>
+                        <button onclick="window.setView('map')" id="btnViewMap" class="px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 text-blue-600 dark:text-slate-400 hover:text-blue-800 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-slate-700 active:scale-95">🗺️ 地圖</button>
                     </div>
                 </div>
 
                 <!-- 畫廊模式容器 -->
                 <div id="galleryContainer" class="flex-grow">
-                    <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                         <!-- 明信片卡片會在這裡生成 -->
                     </div>
 
-                    <div id="emptyState" class="hidden text-center py-20 bg-[#1E293B] rounded-xl border border-slate-700 shadow-sm mt-0">
-                        <span class="text-5xl mb-4 block">📭</span>
-                        <p class="text-slate-400">沒有符合條件的明信片，趕快新增吧！</p>
+                    <div id="emptyState" class="hidden text-center py-24 bg-white dark:bg-[#1E293B] rounded-xl border border-blue-100 dark:border-slate-700 shadow-sm mt-0 transition-colors">
+                        <span class="text-6xl mb-4 block drop-shadow-md">📭</span>
+                        <p class="text-blue-800 dark:text-slate-400 font-bold text-lg">沒有符合條件的明信片</p>
+                        <p class="text-blue-500 dark:text-slate-500 text-sm mt-2">趕快新增或調整篩選條件吧！</p>
                     </div>
                 </div>
 
                 <!-- 地圖模式容器 -->
-                <div id="mapContainerWrapper" class="hidden w-full h-[600px] lg:h-full min-h-[500px] rounded-xl overflow-hidden border border-slate-700 shadow-xl relative z-10">
-                    <div id="map" class="w-full h-full bg-slate-900"></div>
+                <div id="mapContainerWrapper" class="hidden w-full h-[600px] lg:h-full min-h-[500px] rounded-xl overflow-hidden border border-blue-200 dark:border-slate-700 shadow-xl relative z-10 transition-colors duration-300">
+                    <div id="map" class="w-full h-full bg-yellow-50 dark:bg-slate-900 transition-colors duration-300"></div>
                 </div>
 
             </div>
@@ -187,72 +225,72 @@
     </div>
 
     <!-- 圖片放大 Modal (Lightbox) -->
-    <div id="imageModal" class="hidden fixed inset-0 z-[1200] bg-black/90 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
-        <img id="modalImage" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-slate-700" onclick="event.stopPropagation()">
-        <button class="absolute top-6 right-6 text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-700 rounded-full p-2 transition" onclick="window.closeImageModal()">
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    <div id="imageModal" class="hidden fixed inset-0 z-[1200] bg-white/90 dark:bg-black/90 flex justify-center items-center p-4 backdrop-blur-md transition-opacity duration-300" onclick="window.closeImageModal()">
+        <img id="modalImage" src="" class="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl border border-blue-200 dark:border-slate-700 transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+        <button class="absolute top-6 right-6 text-slate-500 dark:text-slate-300 hover:text-blue-600 dark:hover:text-white bg-white dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-full p-3 transition-all duration-200 shadow-lg active:scale-90" onclick="window.closeImageModal()">
+            <svg class="w-6 h-6 font-bold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
     </div>
 
-    <!-- 🚀 通用防呆確認 Modal (支援審核、隱藏、刪除) -->
-    <div id="confirmModal" class="hidden fixed inset-0 z-[1150] bg-black/70 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-[#1E293B] border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full relative overflow-hidden">
+    <!-- 🚀 通用防呆確認 Modal -->
+    <div id="confirmModal" class="hidden fixed inset-0 z-[1150] bg-slate-900/60 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white dark:bg-[#1E293B] border border-blue-100 dark:border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full relative overflow-hidden transform scale-100 transition-all">
             <!-- 裝飾用背景光暈 -->
-            <div id="cmGlow" class="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div id="cmGlow" class="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 dark:bg-blue-500/20 rounded-full blur-3xl pointer-events-none transition-colors"></div>
             
-            <h3 id="cmTitle" class="text-xl font-bold text-white mb-2 flex items-center gap-2 relative z-10">
+            <h3 id="cmTitle" class="text-xl font-extrabold text-blue-900 dark:text-white mb-2 flex items-center gap-2 relative z-10">
                 <!-- 標題會動態載入 -->
             </h3>
-            <p id="cmDesc" class="text-slate-300 text-sm mb-6 relative z-10">
+            <p id="cmDesc" class="text-slate-600 dark:text-slate-300 text-sm font-medium mb-6 relative z-10">
                 <!-- 說明會動態載入 -->
             </p>
             <div class="flex justify-end gap-3 relative z-10">
-                <button onclick="window.closeConfirmModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm transition font-medium">取消</button>
-                <button id="cmConfirmBtn" class="px-4 py-2 text-white rounded-md text-sm transition font-bold shadow-lg">確認</button>
+                <button onclick="window.closeConfirmModal()" class="px-5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg text-sm transition-all duration-200 font-bold active:scale-95">取消</button>
+                <button id="cmConfirmBtn" class="px-5 py-2 text-white rounded-lg text-sm transition-all duration-200 font-bold shadow-lg active:scale-95 hover:-translate-y-0.5">確認</button>
             </div>
         </div>
     </div>
 
     <!-- ✏️ 編輯明信片 Modal -->
-    <div id="editModal" class="hidden fixed inset-0 z-[1160] bg-black/70 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-[#1E293B] border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full relative overflow-hidden">
-            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2 relative z-10">
-                ✏️ 修改明信片資訊
+    <div id="editModal" class="hidden fixed inset-0 z-[1160] bg-slate-900/60 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white dark:bg-[#1E293B] border border-blue-100 dark:border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full relative overflow-hidden">
+            <h3 class="text-xl font-extrabold text-blue-900 dark:text-white mb-4 flex items-center gap-2 relative z-10">
+                <span class="bg-blue-100 dark:bg-transparent p-1 rounded">✏️</span> 修改資訊
             </h3>
             <div class="space-y-4 mb-6 relative z-10">
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">類型</label>
-                    <select id="editTypeInput" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white">
+                    <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">類型</label>
+                    <select id="editTypeInput" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800 dark:text-white font-medium shadow-sm transition-all">
                         <option value="mushroom">🍄 菇點</option>
                         <option value="flower">🌸 花點</option>
                         <option value="hidden_flower">🤫 隱藏花點</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">自訂標籤 (選填)</label>
-                    <input type="text" id="editTagInput" placeholder="不填寫則不顯示" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600">
+                    <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">自訂標籤 (選填)</label>
+                    <input type="text" id="editTagInput" placeholder="不填寫則不顯示" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 font-medium transition-all">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">修改座標 (緯度, 經度)</label>
-                    <input type="text" id="editCoordsInput" placeholder="例如: 26.687957, 128.003198" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md focus:outline-none focus:border-blue-500 text-sm text-white placeholder-slate-600 font-mono">
+                    <label class="block text-xs font-bold text-blue-700 dark:text-slate-400 mb-1">修改座標 (緯度, 經度)</label>
+                    <input type="text" id="editCoordsInput" placeholder="例如: 26.687957, 128.003198" class="w-full px-3 py-2 bg-blue-50/30 dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 font-mono font-bold transition-all">
                 </div>
-                <div class="bg-slate-800/50 p-2.5 rounded-md border border-slate-700/50 flex items-center gap-2">
+                <div class="bg-blue-50 dark:bg-slate-800/50 p-2.5 rounded-md border border-blue-100 dark:border-slate-700/50 flex items-center gap-2">
                     <span class="text-xl">📍</span>
                     <div class="flex-1 overflow-hidden">
-                        <span class="text-[10px] text-slate-400 block mb-0.5">重新解析地點：</span>
-                        <span id="editPreviewLocation" class="text-sm text-slate-500 font-medium truncate block">尚未輸入座標</span>
+                        <span class="text-[10px] text-blue-500 dark:text-slate-400 font-bold block mb-0.5">重新解析地點：</span>
+                        <span id="editPreviewLocation" class="text-sm text-blue-900 dark:text-slate-300 font-bold truncate block">尚未輸入座標</span>
                     </div>
                 </div>
             </div>
             <div class="flex justify-end gap-3 relative z-10">
-                <button onclick="window.closeEditModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm transition font-medium">取消</button>
-                <button onclick="window.confirmEditPostcard()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition font-bold shadow-lg">儲存修改</button>
+                <button onclick="window.closeEditModal()" class="px-5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg text-sm transition-all duration-200 font-bold active:scale-95">取消</button>
+                <button onclick="window.confirmEditPostcard()" class="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-all duration-200 font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 active:scale-95 hover:-translate-y-0.5">儲存修改</button>
             </div>
         </div>
     </div>
 
     <!-- 訊息提示元件 -->
-    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-600 text-white px-6 py-3 rounded-full shadow-2xl z-[1300] flex items-center gap-2">
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl z-[1300] flex items-center gap-2 font-bold border border-slate-700">
         <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
         <span id="toastMsg">操作成功！</span>
     </div>
@@ -287,13 +325,13 @@
         let postcards = [];
         let unsubscribeSnapshot = null;
         
-        // 狀態變數
         let currentFilter = 'all'; 
-        let currentDisplayMode = 'gallery'; // 'gallery' 或 'map'
+        let currentDisplayMode = 'gallery'; 
         
-        // 地圖相關變數
         let leafletMap = null;
         let mapMarkersLayer = null;
+        let lightTileLayer = null;
+        let darkTileLayer = null;
 
         const loginBtn = document.getElementById('loginBtn');
         const userInfo = document.getElementById('userInfo');
@@ -301,20 +339,44 @@
         const userName = document.getElementById('userName');
         const adminNotice = document.getElementById('adminNotice');
 
-        // 👉 偵測是否為 LINE 或 FB 等內建瀏覽器
+        // 👉 深淺色主題切換邏輯
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+        
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('themeIcon').innerHTML = isDark ? '☀️ 亮色' : '🌙 暗色';
+            // 同步切換地圖底圖
+            if (leafletMap && lightTileLayer && darkTileLayer) {
+                if (isDark) {
+                    leafletMap.removeLayer(lightTileLayer);
+                    darkTileLayer.addTo(leafletMap);
+                } else {
+                    leafletMap.removeLayer(darkTileLayer);
+                    lightTileLayer.addTo(leafletMap);
+                }
+            }
+        }
+        updateThemeIcon(); // 初始化圖示
+
+        window.toggleTheme = function() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon();
+        };
+
         const isAppBrowser = /Line|FBAV|FBAN|Instagram/i.test(navigator.userAgent);
         if (isAppBrowser) {
             document.getElementById('inAppWarning').classList.remove('hidden');
         }
 
-        // 啟動 Firebase
         if (useFirebase) {
             try {
                 app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // 無論有沒有登入，網頁一啟動就去抓公開的圖鑑讓大家看！
                 loadPostcardsFromCloud();
 
                 const provider = new GoogleAuthProvider();
@@ -337,7 +399,6 @@
                     signOut(auth);
                 };
 
-                // 自動登入狀態監聽
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         currentUserId = user.uid;
@@ -363,7 +424,6 @@
                         adminNotice.classList.add('hidden');
                         document.getElementById('creatorInput').value = '';
                     }
-                    
                     updateDisplay();
                 });
             } catch(e) {
@@ -372,7 +432,6 @@
             }
         }
 
-        // 載入雲端資料庫
         function loadPostcardsFromCloud() {
             const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'postcards');
             if (unsubscribeSnapshot) unsubscribeSnapshot(); 
@@ -387,10 +446,6 @@
                 console.error("讀取資料失敗", error);
             });
         }
-
-        // ==========================================
-        // UI 與互動邏輯
-        // ==========================================
 
         const fileInput = document.getElementById('fileInput');
         const previewImage = document.getElementById('previewImage');
@@ -409,51 +464,50 @@
         const emptyState = document.getElementById('emptyState');
         const countDisplay = document.getElementById('countDisplay');
 
-        // 切換顯示模式 (畫廊 / 地圖)
+        // 樣式常數，用來切換按鈕視覺
+        const activeFilterClass = "filter-btn px-4 py-1.5 text-[13px] rounded-full bg-blue-500 dark:bg-[#3B6EA5] text-white border border-blue-500 dark:border-[#3B6EA5] transition-all duration-200 font-bold shadow-md transform hover:-translate-y-0.5 active:scale-95";
+        const inactiveFilterClass = "filter-btn px-4 py-1.5 text-[13px] rounded-full bg-white dark:bg-slate-800 text-blue-600 dark:text-slate-300 border border-blue-200 dark:border-slate-700 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-700 font-bold shadow-sm hover:shadow active:scale-95";
+
+        // 更新過濾器按鈕的 UI 樣式 (避免在渲染時重複觸發 updateDisplay 導致無限迴圈)
+        function updateFilterButtonUI(type) {
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => {
+                if (btn.dataset.type === type) {
+                    btn.className = activeFilterClass;
+                } else {
+                    btn.className = inactiveFilterClass;
+                }
+            });
+        }
+
         window.setView = function(mode) {
             currentDisplayMode = mode;
             const btnGallery = document.getElementById('btnViewGallery');
             const btnMap = document.getElementById('btnViewMap');
 
             if (mode === 'gallery') {
-                btnGallery.className = "px-3 py-1 text-xs font-bold rounded-md transition-colors bg-slate-600 text-white shadow";
-                btnMap.className = "px-3 py-1 text-xs font-bold rounded-md transition-colors text-slate-400 hover:text-white";
+                btnGallery.className = "px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 bg-blue-500 text-white shadow-md transform hover:-translate-y-0.5 active:scale-95";
+                btnMap.className = "px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 text-blue-600 dark:text-slate-400 hover:text-blue-800 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-slate-700 active:scale-95";
                 galleryContainer.classList.remove('hidden');
                 mapContainerWrapper.classList.add('hidden');
             } else {
-                btnMap.className = "px-3 py-1 text-xs font-bold rounded-md transition-colors bg-slate-600 text-white shadow";
-                btnGallery.className = "px-3 py-1 text-xs font-bold rounded-md transition-colors text-slate-400 hover:text-white";
+                btnMap.className = "px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 bg-blue-500 text-white shadow-md transform hover:-translate-y-0.5 active:scale-95";
+                btnGallery.className = "px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 text-blue-600 dark:text-slate-400 hover:text-blue-800 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-slate-700 active:scale-95";
                 galleryContainer.classList.add('hidden');
                 mapContainerWrapper.classList.remove('hidden');
                 
-                // 初始化地圖 (如果尚未初始化)
-                if (!leafletMap) {
-                    initLeafletMap();
-                } else {
-                    // 解決地圖容器因 hidden 導致的尺寸計算錯誤
-                    setTimeout(() => { leafletMap.invalidateSize(); }, 100);
-                }
+                if (!leafletMap) initLeafletMap();
+                else setTimeout(() => { leafletMap.invalidateSize(); }, 100);
             }
             updateDisplay();
         };
 
-        // 過濾器切換邏輯
         window.setFilter = function(type) {
             currentFilter = type;
-            const buttons = document.querySelectorAll('.filter-btn');
-            buttons.forEach(btn => {
-                if (btn.dataset.type === type) {
-                    btn.classList.add('bg-[#3B6EA5]', 'text-white', 'border-[#3B6EA5]');
-                    btn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700');
-                } else {
-                    btn.classList.remove('bg-[#3B6EA5]', 'text-white', 'border-[#3B6EA5]');
-                    btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
-                }
-            });
+            updateFilterButtonUI(type);
             updateDisplay();
         };
 
-        // 圖片壓縮函數
         function compressImage(file, callback) {
             const reader = new FileReader();
             reader.onload = (event) => {
@@ -488,9 +542,12 @@
             removeImageBtn.classList.remove('hidden');
             placeholderText.classList.add('hidden');
             document.getElementById('errorMsg').classList.add('hidden');
+            
+            // 加入上傳成功後的 Q彈動畫提示
+            previewImage.classList.add('scale-105');
+            setTimeout(() => { previewImage.classList.remove('scale-105'); previewImage.classList.add('transition-transform', 'duration-300', 'scale-100'); }, 50);
         }
 
-        // 剪貼簿與拖曳事件支援
         window.addEventListener('paste', async (e) => {
             const clipboardData = e.clipboardData || window.clipboardData;
             if (!clipboardData) return;
@@ -534,11 +591,11 @@
         });
 
         const dropZone = document.getElementById('dropZone');
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-slate-800'); });
-        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-slate-800'); });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-100', 'dark:bg-slate-800'); });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-blue-100', 'dark:bg-slate-800'); });
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('border-blue-500', 'bg-slate-800');
+            dropZone.classList.remove('border-blue-500', 'bg-blue-100', 'dark:bg-slate-800');
             if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                 const file = e.dataTransfer.files[0];
                 if (file.type.startsWith('image/')) {
@@ -562,9 +619,9 @@
                 window.showToast('剪貼簿中沒有圖片，請確認您複製的是圖片。');
             } catch (err) {
                 window.focus(); 
-                dropZone.classList.add('border-blue-500', 'bg-slate-700');
+                dropZone.classList.add('border-red-400', 'bg-red-50');
                 window.showToast('👉 瀏覽器安全阻擋，請直接按下鍵盤 Ctrl+V 貼上圖片！');
-                setTimeout(() => { dropZone.classList.remove('border-blue-500', 'bg-slate-700'); }, 2000);
+                setTimeout(() => { dropZone.classList.remove('border-red-400', 'bg-red-50'); }, 2000);
             }
         };
 
@@ -583,8 +640,6 @@
             placeholderText.classList.remove('hidden');
         };
 
-        // 地理編碼與通知
-        let currentImageDataUrl = null;
         let parsedLat = null;
         let parsedLng = null;
         let parsedLocationString = "未知地點";
@@ -623,16 +678,16 @@
                 parsedLat = parseFloat(match[1]);
                 parsedLng = parseFloat(match[2]);
                 previewLocation.textContent = "地點解析中...";
-                previewLocation.className = "text-sm text-blue-400 font-medium truncate block animate-pulse";
+                previewLocation.className = "text-sm text-blue-500 font-bold truncate block animate-pulse";
                 parsedLocationString = await fetchLocationName(parsedLat, parsedLng);
                 previewLocation.textContent = parsedLocationString;
-                previewLocation.className = "text-sm text-green-400 font-medium truncate block";
+                previewLocation.className = "text-sm text-green-600 dark:text-green-400 font-bold truncate block";
             } else {
                 parsedLat = null;
                 parsedLng = null;
                 parsedLocationString = "未知地點";
                 previewLocation.textContent = val.length > 0 ? "座標格式錯誤..." : "尚未輸入座標";
-                previewLocation.className = "text-sm text-slate-500 font-medium truncate block";
+                previewLocation.className = "text-sm text-blue-900 dark:text-slate-300 font-bold truncate block";
             }
         });
 
@@ -646,7 +701,6 @@
             document.body.removeChild(textArea);
         };
 
-        // 新增明信片
         addBtn.addEventListener('click', async () => {
             if (useFirebase && !currentUserId) {
                 document.getElementById('errorMsg').textContent = '請先點擊右上角登入 Google 帳號。';
@@ -657,7 +711,6 @@
             const creator = creatorInput.value.trim() || '匿名玩家';
             const type = typeInput.value;
             
-            // 抓取自訂標籤，並過濾掉使用者多打的 # 符號
             let customTag = document.getElementById('customTagInput').value.trim();
             if (customTag.startsWith('#')) customTag = customTag.substring(1);
 
@@ -714,7 +767,7 @@
                 parsedLng = null;
                 parsedLocationString = "未知地點";
                 previewLocation.textContent = "尚未輸入座標";
-                previewLocation.className = "text-sm text-slate-500 font-medium truncate block";
+                previewLocation.className = "text-sm text-blue-900 dark:text-slate-300 font-bold truncate block";
             } catch (e) {
                 window.showToast("儲存失敗，請檢查網路連線。");
             }
@@ -725,35 +778,39 @@
             addBtn.classList.remove('opacity-75', 'cursor-not-allowed');
         });
 
-        // ==========================================
         // Modal 與 管理員/編輯 功能邏輯
-        // ==========================================
-
         window.openImageModal = function(src) {
-            document.getElementById('modalImage').src = src;
+            const modalImg = document.getElementById('modalImage');
+            modalImg.src = src;
             document.getElementById('imageModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            // 彈出動畫
+            setTimeout(() => { modalImg.classList.remove('scale-95'); modalImg.classList.add('scale-100'); }, 10);
         };
+        
         window.closeImageModal = function() {
-            document.getElementById('imageModal').classList.add('hidden');
-            document.body.style.overflow = '';
+            const modalImg = document.getElementById('modalImage');
+            modalImg.classList.remove('scale-100'); modalImg.classList.add('scale-95');
+            setTimeout(() => {
+                document.getElementById('imageModal').classList.add('hidden');
+                document.body.style.overflow = '';
+            }, 200);
         };
 
         let confirmActionCallback = null;
 
-        // 通用防呆視窗呼叫器
         function showConfirmModal(title, desc, btnText, colorClass, actionCallback) {
             document.getElementById('cmTitle').innerHTML = title;
             document.getElementById('cmDesc').innerHTML = desc;
             
             const btn = document.getElementById('cmConfirmBtn');
             btn.innerText = btnText;
-            btn.className = `px-4 py-2 text-white rounded-md text-sm transition font-bold shadow-lg ${colorClass}`;
+            btn.className = `px-5 py-2 text-white rounded-lg text-sm transition-all duration-200 font-bold shadow-lg active:scale-95 hover:-translate-y-0.5 ${colorClass}`;
             
             const glow = document.getElementById('cmGlow');
-            if(colorClass.includes('red')) glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-red-500/20 rounded-full blur-3xl pointer-events-none';
-            else if(colorClass.includes('green')) glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl pointer-events-none';
-            else glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-yellow-500/20 rounded-full blur-3xl pointer-events-none';
+            if(colorClass.includes('red')) glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-red-500/10 dark:bg-red-500/20 rounded-full blur-3xl pointer-events-none transition-colors';
+            else if(colorClass.includes('green')) glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-green-500/10 dark:bg-green-500/20 rounded-full blur-3xl pointer-events-none transition-colors';
+            else glow.className = 'absolute -top-10 -right-10 w-32 h-32 bg-yellow-500/10 dark:bg-yellow-500/20 rounded-full blur-3xl pointer-events-none transition-colors';
 
             confirmActionCallback = actionCallback;
             document.getElementById('confirmModal').classList.remove('hidden');
@@ -778,7 +835,6 @@
         const editCoordsInput = document.getElementById('editCoordsInput');
         const editPreviewLocation = document.getElementById('editPreviewLocation');
 
-        // 即時解析編輯區的座標
         editCoordsInput.addEventListener('input', async (e) => {
             const val = e.target.value.trim();
             const match = val.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
@@ -789,13 +845,13 @@
                 editPreviewLocation.className = "text-sm text-blue-400 font-medium truncate block animate-pulse";
                 editParsedLocationString = await fetchLocationName(editParsedLat, editParsedLng);
                 editPreviewLocation.textContent = editParsedLocationString;
-                editPreviewLocation.className = "text-sm text-green-400 font-medium truncate block";
+                editPreviewLocation.className = "text-sm text-green-600 dark:text-green-400 font-bold truncate block";
             } else {
                 editParsedLat = null;
                 editParsedLng = null;
                 editParsedLocationString = "未知地點";
                 editPreviewLocation.textContent = val.length > 0 ? "座標格式錯誤..." : "尚未輸入座標";
-                editPreviewLocation.className = "text-sm text-slate-500 font-medium truncate block";
+                editPreviewLocation.className = "text-sm text-blue-900 dark:text-slate-300 font-bold truncate block";
             }
         });
 
@@ -809,7 +865,7 @@
             editParsedLocationString = currentLocationStr || "未知地點";
             editCoordsInput.value = `${currentLat}, ${currentLng}`;
             editPreviewLocation.textContent = editParsedLocationString;
-            editPreviewLocation.className = "text-sm text-green-400 font-medium truncate block";
+            editPreviewLocation.className = "text-sm text-green-600 dark:text-green-400 font-bold truncate block";
 
             document.getElementById('editModal').classList.remove('hidden');
         };
@@ -846,7 +902,6 @@
             window.closeEditModal();
         };
 
-        // 刪除按鈕觸發
         window.promptDeletePostcard = function(id) {
             showConfirmModal(
                 '<svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> 確認刪除',
@@ -859,12 +914,11 @@
                             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id));
                             window.showToast('已刪除明信片');
                         }
-                    } catch(e) { console.error(e); }
+                    } catch(e) {}
                 }
             );
         };
 
-        // 核准按鈕觸發
         window.promptApprovePostcard = function(id) {
             showConfirmModal(
                 '✅ 確認公開',
@@ -878,12 +932,11 @@
                             await updateDoc(docRef, { status: 'approved' });
                             window.showToast('已核准該明信片！公開顯示中。');
                         }
-                    } catch(e) { console.error(e); }
+                    } catch(e) {}
                 }
             );
         };
 
-        // 撤銷(隱藏)按鈕觸發
         window.promptHidePostcard = function(id) {
             showConfirmModal(
                 '👁️ 撤銷公開',
@@ -894,11 +947,10 @@
                     try {
                         if (useFirebase && currentUserId === ADMIN_UID) {
                             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'postcards', id);
-                            // 將狀態改回 pending 達成隱藏效果
                             await updateDoc(docRef, { status: 'pending' });
                             window.showToast('已撤銷公開！明信片已退回審核區。');
                         }
-                    } catch(e) { console.error(e); }
+                    } catch(e) {}
                 }
             );
         };
@@ -916,10 +968,7 @@
             } catch(e) {}
         };
 
-        // ==========================================
         // 渲染邏輯 (畫廊 與 地圖)
-        // ==========================================
-
         function getTagInfo(type) {
             if (type === 'mushroom') return { color: '#9333ea', text: '#菇點' };
             if (type === 'hidden_flower') return { color: '#10b981', text: '#隱藏花點' };
@@ -927,7 +976,6 @@
         }
 
         function updateDisplay() {
-            // 👉 共同過濾邏輯 (權限 + 頁籤分類)
             const displayCards = postcards.filter(card => {
                 let isAuthVisible = false;
                 if (currentUserId === ADMIN_UID) isAuthVisible = true;
@@ -949,6 +997,9 @@
         }
 
         function renderGalleryView(displayCards) {
+            // 初始化 active 過濾器樣式，改用 updateFilterButtonUI 而非 setFilter 以避免無窮迴圈
+            updateFilterButtonUI(currentFilter);
+
             if (displayCards.length === 0) {
                 gallery.innerHTML = '';
                 emptyState.classList.remove('hidden');
@@ -963,91 +1014,89 @@
                 
                 const isPending = card.status === 'pending';
                 const pendingOverlay = isPending ? `
-                    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none">
-                        <span class="bg-yellow-500 text-slate-900 text-xs font-bold px-3 py-1 rounded shadow-lg transform -rotate-12">等待審核中</span>
+                    <div class="absolute inset-0 bg-slate-900/10 dark:bg-slate-900/40 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none rounded-xl">
+                        <span class="bg-yellow-400 dark:bg-yellow-500 text-blue-900 dark:text-slate-900 text-xs font-extrabold px-3 py-1 rounded shadow-lg transform -rotate-12">等待審核中</span>
                     </div>
                 ` : '';
 
-                // 管理員控制按鈕群
                 let adminControlsHtml = '';
                 if (currentUserId === ADMIN_UID) {
                     if (isPending) {
                         adminControlsHtml += `
-                            <button onclick="window.promptApprovePostcard('${card.id}')" class="absolute top-2 left-2 bg-green-500/90 text-white rounded-full px-3 py-1 text-[11px] font-bold shadow-lg hover:bg-green-600 transition z-20">
+                            <button onclick="window.promptApprovePostcard('${card.id}')" class="absolute top-2 left-2 bg-green-500/90 text-white rounded-full px-3 py-1 text-[11px] font-bold shadow-lg hover:bg-green-600 transition-all hover:scale-105 active:scale-95 z-20">
                                 ✅ 審核公開
                             </button>
                         `;
                     } else {
                         adminControlsHtml += `
-                            <button onclick="window.promptHidePostcard('${card.id}')" class="absolute top-2 left-2 bg-slate-700/90 text-white rounded-full px-3 py-1 text-[11px] font-bold shadow-lg hover:bg-slate-600 transition z-20 border border-slate-600">
+                            <button onclick="window.promptHidePostcard('${card.id}')" class="absolute top-2 left-2 bg-slate-600/90 dark:bg-slate-700/90 text-white rounded-full px-3 py-1 text-[11px] font-bold shadow-lg hover:bg-slate-700 transition-all hover:scale-105 active:scale-95 z-20 border border-slate-500">
                                 👁️ 撤銷公開
                             </button>
                         `;
                     }
                 }
 
-                // 編輯與刪除按鈕群
                 const showEditDeleteBtns = (currentUserId === ADMIN_UID || (currentUserId && card.creatorUid === currentUserId));
                 const safeLocationStr = (card.locationString || '').replace(/'/g, "\\'");
                 const actionBtnsHtml = showEditDeleteBtns ? `
-                    <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                        <button onclick="window.promptEditPostcard('${card.id}', '${card.type}', '${card.customTag || ''}', ${card.lat}, ${card.lng}, '${safeLocationStr}')" class="bg-blue-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-600" title="修改明信片資訊">
+                    <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
+                        <button onclick="window.promptEditPostcard('${card.id}', '${card.type}', '${card.customTag || ''}', ${card.lat}, ${card.lng}, '${safeLocationStr}')" class="bg-blue-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-600 hover:scale-110 active:scale-90 transition-all" title="修改明信片資訊">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         </button>
                         ${currentUserId === ADMIN_UID ? `
-                        <button onclick="window.promptDeletePostcard('${card.id}')" class="bg-red-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600" title="刪除">
+                        <button onclick="window.promptDeletePostcard('${card.id}')" class="bg-red-500/90 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 hover:scale-110 active:scale-90 transition-all" title="刪除">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                         ` : ''}
                     </div>
                 ` : '';
 
-                const customTagHtml = card.customTag ? `<span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0">#${card.customTag}</span>` : '';
+                const customTagHtml = card.customTag ? `<span class="px-2 py-0.5 rounded-full text-[11px] bg-blue-100 dark:bg-slate-800 text-blue-700 dark:text-slate-300 border border-blue-200 dark:border-slate-700 flex-shrink-0 font-bold">#${card.customTag}</span>` : '';
 
                 return `
-                <div class="bg-[#1A2035] rounded-xl overflow-hidden border ${isPending ? 'border-yellow-500' : 'border-[#2A344A]'} flex flex-col relative group shadow-lg">
+                <div class="bg-white dark:bg-[#1A2035] rounded-xl overflow-hidden border ${isPending ? 'border-yellow-400 dark:border-yellow-500' : 'border-blue-100 dark:border-[#2A344A]'} flex flex-col relative group shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                     ${pendingOverlay}
                     ${adminControlsHtml}
                     ${actionBtnsHtml}
                     
-                    <div class="bg-[#3B6EA5] p-2.5 pb-3 relative">
-                        <img src="${card.image}" alt="明信片" class="w-full h-[180px] object-cover rounded-md shadow-inner cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onclick="window.openImageModal('${card.image}')">
-                        <h3 class="text-white font-bold text-[15px] mt-2.5 px-1 truncate shadow-sm">${card.title}</h3>
+                    <div class="bg-blue-50 dark:bg-[#3B6EA5] p-2.5 pb-3 relative transition-colors">
+                        <img src="${card.image}" alt="明信片" class="w-full h-[180px] object-cover rounded-lg shadow-sm cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onclick="window.openImageModal('${card.image}')">
+                        <h3 class="text-blue-900 dark:text-white font-extrabold text-[15px] mt-2.5 px-1 truncate drop-shadow-sm">${card.title}</h3>
                     </div>
                     
-                    <div class="p-4 flex flex-col flex-grow bg-[#1A2035]">
+                    <div class="p-4 flex flex-col flex-grow bg-white dark:bg-[#1A2035] transition-colors">
                         <div class="flex justify-between items-center mb-4 relative z-20">
-                            <div class="flex items-center text-slate-400 text-xs">
+                            <div class="flex items-center text-slate-500 dark:text-slate-400 text-xs">
                                 <span>By</span>
-                                <span class="text-white font-bold mx-1.5">${card.creator}</span>
-                                <span class="text-[10px] bg-slate-800 px-1 rounded mr-1">🌱</span>
+                                <span class="text-blue-800 dark:text-white font-bold mx-1.5">${card.creator}</span>
+                                <span class="text-[10px] bg-blue-50 dark:bg-slate-800 px-1 rounded mr-1">🌱</span>
                                 <span class="truncate max-w-[90px]">${hash}...</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <button onclick="window.toggleLike('${card.id}', ${likesCount})" class="flex items-center bg-[#2A344A] px-2 py-1 rounded text-xs text-white hover:bg-[#34415C] transition-colors border border-slate-700">
-                                    <svg class="w-3.5 h-3.5 mr-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                                <button onclick="window.toggleLike('${card.id}', ${likesCount})" class="flex items-center bg-white dark:bg-[#2A344A] px-2 py-1 rounded text-xs text-blue-600 dark:text-white hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-[#34415C] transition-all active:scale-90 border border-blue-200 dark:border-slate-700 shadow-sm font-bold">
+                                    <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                                     <span>${likesCount}</span>
                                 </button>
                             </div>
                         </div>
                         
-                        <div class="bg-[#121726] border border-[#2A344A] rounded p-2.5 flex justify-between items-center mb-3 group/copy cursor-pointer relative z-20" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
-                            <span class="text-slate-300 font-mono text-xs tracking-wide">
+                        <div class="bg-blue-50/50 dark:bg-[#121726] border border-blue-100 dark:border-[#2A344A] rounded-lg p-2.5 flex justify-between items-center mb-3 group/copy cursor-pointer relative z-20 hover:bg-blue-100 dark:hover:bg-slate-800 transition-colors" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
+                            <span class="text-blue-800 dark:text-slate-300 font-mono text-xs tracking-wide font-bold">
                                 ${card.lat.toFixed(7)}, ${card.lng.toFixed(7)}
                             </span>
-                            <button class="text-slate-500 group-hover/copy:text-white transition-colors">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                            <button class="text-blue-400 dark:text-slate-500 group-hover/copy:text-blue-600 dark:group-hover/copy:text-white transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                             </button>
                         </div>
                         
                         <div class="flex flex-wrap gap-2 mb-4 relative z-20">
-                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0" style="color: ${tagInfo.color}">${tagInfo.text}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] bg-blue-100 dark:bg-slate-800 font-bold border border-blue-200 dark:border-slate-700 flex-shrink-0 shadow-sm" style="color: ${tagInfo.color}">${tagInfo.text}</span>
                             ${customTagHtml}
                         </div>
                         
-                        <div class="mt-auto pt-3 border-t border-[#2A344A] relative z-20">
-                            <div class="flex items-center gap-1.5 text-xs text-slate-400">
-                                <div class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: ${tagInfo.color}"></div>
+                        <div class="mt-auto pt-3 border-t border-blue-100 dark:border-[#2A344A] relative z-20 transition-colors">
+                            <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                <div class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm" style="background-color: ${tagInfo.color}"></div>
                                 <span class="truncate" title="${card.locationString}">${card.locationString}</span>
                             </div>
                         </div>
@@ -1057,30 +1106,31 @@
             }).join('');
         }
 
-        // ==========================================
-        // 地圖模式邏輯 (Leaflet)
-        // ==========================================
-
         function initLeafletMap() {
-            // 以台灣中心點預設
             leafletMap = L.map('map').setView([23.6978, 120.9605], 7);
             
-            // 使用質感深色地圖底圖 (CartoDB Dark Matter)
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(leafletMap);
+            // 亮色地圖底圖
+            lightTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19
+            });
+            // 暗色地圖底圖
+            darkTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19
+            });
+
+            // 依據目前主題套用底圖
+            if (document.documentElement.classList.contains('dark')) {
+                darkTileLayer.addTo(leafletMap);
+            } else {
+                lightTileLayer.addTo(leafletMap);
+            }
 
             mapMarkersLayer = L.layerGroup().addTo(leafletMap);
         }
 
         function renderMapView(displayCards) {
             if (!leafletMap || !mapMarkersLayer) return;
-            
-            // 清空舊圖標
             mapMarkersLayer.clearLayers();
-
             const bounds = [];
 
             displayCards.forEach(card => {
@@ -1088,13 +1138,10 @@
 
                 const tagInfo = getTagInfo(card.type);
                 const isPending = card.status === 'pending';
-                
-                // 外框樣式 (審核中用黃色，其餘依照卡片類型)
                 const borderColor = isPending ? '#eab308' : tagInfo.color;
 
-                // 👉 製作地圖上的小圖標 HTML (尺寸 56x56)
                 const iconHtml = `
-                    <div class="w-14 h-14 rounded-full border-[3px] overflow-hidden shadow-lg" style="border-color: ${borderColor}">
+                    <div class="w-14 h-14 rounded-full border-[3px] overflow-hidden shadow-lg transition-transform hover:scale-110 active:scale-95 cursor-pointer" style="border-color: ${borderColor}">
                         <img src="${card.image}" class="w-full h-full object-cover">
                     </div>
                 `;
@@ -1107,31 +1154,30 @@
                     popupAnchor: [0, -28]
                 });
 
-                // 👉 彈出資訊窗 HTML (包含座標與複製按鈕)
                 const popupHtml = `
                     <div class="w-48 font-sans">
                         <div class="relative">
-                            <img src="${card.image}" class="w-full h-24 object-cover rounded border border-slate-600 mb-2 cursor-pointer hover:opacity-90" onclick="window.openImageModal('${card.image}')">
-                            ${isPending ? '<span class="absolute top-1 right-1 bg-yellow-500 text-slate-900 text-[10px] font-bold px-1 rounded">審核中</span>' : ''}
+                            <img src="${card.image}" class="w-full h-24 object-cover rounded-lg border border-blue-200 dark:border-slate-600 mb-2 cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm" onclick="window.openImageModal('${card.image}')">
+                            ${isPending ? '<span class="absolute top-1 right-1 bg-yellow-400 dark:bg-yellow-500 text-blue-900 dark:text-slate-900 text-[10px] font-extrabold px-1.5 py-0.5 rounded shadow">審核中</span>' : ''}
                         </div>
-                        <h4 class="font-bold text-sm text-white mb-1 truncate">${card.title}</h4>
-                        <p class="text-[11px] text-slate-400 mb-2 truncate">By ${card.creator}</p>
+                        <h4 class="font-extrabold text-sm text-blue-900 dark:text-white mb-1 truncate">${card.title}</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2 truncate font-medium">By ${card.creator}</p>
                         
-                        <div class="bg-[#121726] border border-[#2A344A] rounded p-2 flex justify-between items-center mb-2 group/copy cursor-pointer" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
-                            <span class="text-slate-300 font-mono text-[10px] tracking-wide truncate">
+                        <div class="bg-blue-50 dark:bg-[#121726] border border-blue-100 dark:border-[#2A344A] rounded-lg p-2 flex justify-between items-center mb-2 group/copy cursor-pointer hover:bg-blue-100 dark:hover:bg-slate-800 transition-colors" onclick="window.copyCoords(${card.lat}, ${card.lng})" title="點擊複製座標">
+                            <span class="text-blue-800 dark:text-slate-300 font-mono text-[10px] tracking-wide truncate font-bold">
                                 ${card.lat.toFixed(6)}, ${card.lng.toFixed(6)}
                             </span>
-                            <button class="text-slate-500 hover:text-white transition-colors flex-shrink-0 ml-1">
+                            <button class="text-blue-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-white transition-colors flex-shrink-0 ml-1">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                             </button>
                         </div>
                         
-                        <div class="flex items-center justify-between border-t border-slate-700 pt-2 mt-1 gap-1">
+                        <div class="flex items-center justify-between border-t border-blue-100 dark:border-slate-700 pt-2 mt-1 gap-1">
                             <div class="flex items-center flex-wrap gap-1">
-                                <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 flex-shrink-0" style="color: ${tagInfo.color}">${tagInfo.text}</span>
-                                ${card.customTag ? `<span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0">#${card.customTag}</span>` : ''}
+                                <span class="text-[11px] px-1.5 py-0.5 rounded font-bold shadow-sm bg-blue-50 dark:bg-slate-800 flex-shrink-0" style="color: ${tagInfo.color}">${tagInfo.text}</span>
+                                ${card.customTag ? `<span class="text-[11px] px-1.5 py-0.5 rounded font-bold shadow-sm bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-slate-300 flex-shrink-0">#${card.customTag}</span>` : ''}
                             </div>
-                            <span class="text-xs text-slate-300 flex-shrink-0">❤️ ${card.likes || 0}</span>
+                            <span class="text-xs text-red-500 dark:text-slate-300 font-bold flex-shrink-0">❤️ ${card.likes || 0}</span>
                         </div>
                     </div>
                 `;
@@ -1143,7 +1189,6 @@
                 bounds.push([card.lat, card.lng]);
             });
 
-            // 如果有圖釘，自動縮放地圖到適合的範圍
             if (bounds.length > 0 && currentDisplayMode === 'map') {
                 leafletMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
             }
