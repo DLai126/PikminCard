@@ -464,6 +464,8 @@
         const emptyState = document.getElementById('emptyState');
         const countDisplay = document.getElementById('countDisplay');
 
+        let currentImageDataUrl = null;
+
         // 樣式常數，用來切換按鈕視覺
         const activeFilterClass = "filter-btn px-4 py-1.5 text-[13px] rounded-full bg-blue-500 dark:bg-[#3B6EA5] text-white border border-blue-500 dark:border-[#3B6EA5] transition-all duration-200 font-bold shadow-md transform hover:-translate-y-0.5 active:scale-95";
         const inactiveFilterClass = "filter-btn px-4 py-1.5 text-[13px] rounded-full bg-white dark:bg-slate-800 text-blue-600 dark:text-slate-300 border border-blue-200 dark:border-slate-700 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-slate-700 font-bold shadow-sm hover:shadow active:scale-95";
@@ -1085,7 +1087,7 @@
                                 ${card.lat.toFixed(7)}, ${card.lng.toFixed(7)}
                             </span>
                             <button class="text-blue-400 dark:text-slate-500 group-hover/copy:text-blue-600 dark:group-hover/copy:text-white transition-colors">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                             </button>
                         </div>
                         
